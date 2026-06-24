@@ -22,7 +22,7 @@ export function ConfigureRolesScreen() {
   };
 
   return (
-    <main className="relative min-h-screen bg-neutral-950 px-6 pb-12 pt-20 text-white">
+    <main className="relative flex min-h-[100dvh] items-center justify-center bg-neutral-950 px-6 py-20 text-white">
       <BackArrow onBack={actions.goHome} label="Back to Home" />
 
       <div className="mx-auto w-full max-w-md">

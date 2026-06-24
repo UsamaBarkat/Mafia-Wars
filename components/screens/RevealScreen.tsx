@@ -63,25 +63,28 @@ export function RevealScreen() {
   const role = assignment[revealIndex];
 
   return (
-    <main className="relative flex min-h-screen flex-col bg-neutral-950 text-white">
+    <main className="relative flex min-h-[100dvh] flex-col bg-neutral-950 text-white">
       <BackArrow onBack={() => setConfirmOpen(true)} label="End reveal" />
 
       {!revealShown ? (
-        // Whole hidden card is the tap target (FR-8).
+        // Whole hidden card is the tap target (FR-8); inner content is a centered,
+        // width-capped group.
         <button
           type="button"
           onClick={actions.revealCurrent}
-          className="flex flex-1 flex-col items-center justify-center gap-6 px-6 text-center"
+          className="flex flex-1 flex-col items-center justify-center px-6 text-center"
         >
-          <p className="text-lg uppercase tracking-[0.2em] text-neutral-400">
-            Player {playerNumber} of {total}
-          </p>
-          <p className="text-xl text-neutral-200">
-            Pass the phone to Player {playerNumber}
-          </p>
-          <p className="mt-8 text-2xl font-semibold text-red-500">
-            Click to see the role
-          </p>
+          <div className="mx-auto flex w-full max-w-md flex-col items-center gap-6">
+            <p className="text-lg uppercase tracking-[0.2em] text-neutral-400">
+              Player {playerNumber} of {total}
+            </p>
+            <p className="text-xl text-neutral-200">
+              Pass the phone to Player {playerNumber}
+            </p>
+            <p className="mt-8 text-2xl font-semibold text-red-500">
+              Click to see the role
+            </p>
+          </div>
         </button>
       ) : (
         // Revealed: only the role name. The card itself is inert; Next advances.
