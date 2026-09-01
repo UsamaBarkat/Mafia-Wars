@@ -42,3 +42,32 @@ export function evaluateSetup(roles: readonly Role[]): SetupEvaluation {
   }
   return { canStart: true, reason: null };
 }
+
+/**
+ * Online (2a) START gate: valid role setup (evaluateSetup) AND the number of connected
+ * players exactly equals Total Players Needed (sum of role counts). The moderator is not
+ * a player and is not counted here (spec-2a FR-11 / Edge "min players online").
+ */
+export function evaluateOnlineStart(
+  roles: readonly Role[],
+  connectedPlayers: number,
+): SetupEvaluation {
+  const base = evaluateSetup(roles);
+  if (!base.canStart) return base; // Phase 1 config reasons first
+
+  const totalRoles = roles.reduce((sum, role) => sum + role.count, 0);
+  if (connectedPlayers < totalRoles) {
+    const need = totalRoles - connectedPlayers;
+    return {
+      canStart: false,
+      reason: `Need ${need} more player${need === 1 ? "" : "s"}`,
+    };
+  }
+  if (connectedPlayers > totalRoles) {
+    return {
+      canStart: false,
+      reason: "Too many players — add roles or remove players",
+    };
+  }
+  return { canStart: true, reason: null };
+}

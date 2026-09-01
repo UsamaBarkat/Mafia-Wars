@@ -8,6 +8,9 @@ import { HomeScreen } from "@/components/screens/HomeScreen";
 import { ConfigureRolesScreen } from "@/components/screens/ConfigureRolesScreen";
 import { RevealScreen } from "@/components/screens/RevealScreen";
 import { AllDoneScreen } from "@/components/screens/AllDoneScreen";
+import { OnlineModeScreen } from "@/components/screens/OnlineModeScreen";
+import { WaitingRoomScreen } from "@/components/screens/WaitingRoomScreen";
+import { ReconnectOnLoad } from "@/components/online/ReconnectOnLoad";
 
 function ScreenRouter() {
   const { state, actions } = useGame();
@@ -21,6 +24,10 @@ function ScreenRouter() {
       return <RevealScreen />;
     case "allDone":
       return <AllDoneScreen />;
+    case "onlineMode":
+      return <OnlineModeScreen />;
+    case "waitingRoom":
+      return <WaitingRoomScreen />;
     default:
       return (
         <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-neutral-950 px-6 text-center text-white">
@@ -42,6 +49,7 @@ function ScreenRouter() {
 export default function Page() {
   return (
     <GameProvider>
+      <ReconnectOnLoad />
       <ScreenRouter />
     </GameProvider>
   );

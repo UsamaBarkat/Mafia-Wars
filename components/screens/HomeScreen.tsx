@@ -55,6 +55,14 @@ export function HomeScreen() {
           >
             Roles
           </button>
+
+          <button
+            type="button"
+            onClick={actions.goOnlineMode}
+            className="rounded-xl bg-emerald-600 px-6 py-4 text-xl font-bold uppercase tracking-wide text-white hover:bg-emerald-700 active:bg-emerald-800"
+          >
+            Play Online
+          </button>
         </div>
       </div>
     </main>

@@ -13,8 +13,15 @@ import {
 } from "@/lib/roles";
 import { buildAssignment } from "@/lib/assignment";
 import { evaluateSetup } from "@/lib/validation";
+import { saveRoomSession, clearRoomSession } from "@/lib/room/session";
 
-export type Screen = "home" | "configure" | "reveal" | "allDone";
+export type Screen =
+  | "home"
+  | "configure"
+  | "reveal"
+  | "allDone"
+  | "onlineMode"
+  | "waitingRoom";
 
 export type GameState = {
   screen: Screen;
@@ -28,6 +35,13 @@ export type GameState = {
   revealIndex: number;
   /** Whether the current player's role is currently shown vs hidden (FR-8). */
   revealShown: boolean;
+  // --- Online (Phase 2 / 2a) ---
+  /** Current online room code, or null when not in an online room. */
+  roomCode: string | null;
+  /** Whether this device is the room's (non-playing) moderator. */
+  isModerator: boolean;
+  /** Name entered for online play (persists across visits like hostName). */
+  onlineName: string;
 };
 
 function createInitialState(): GameState {
@@ -38,6 +52,9 @@ function createInitialState(): GameState {
     assignment: null,
     revealIndex: 0,
     revealShown: false,
+    roomCode: null,
+    isModerator: false,
+    onlineName: "",
   };
 }
 
@@ -50,7 +67,9 @@ type Action =
   | { type: "REVEAL_CURRENT" }
   | { type: "NEXT_PLAYER" }
   | { type: "GO_HOME" }
-  | { type: "GO_CONFIGURE" };
+  | { type: "GO_CONFIGURE" }
+  | { type: "GO_ONLINE_MODE" }
+  | { type: "ENTER_WAITING_ROOM"; code: string; isModerator: boolean; name: string };
 
 /** Normalised form used for the case-insensitive, trimmed duplicate check (FR-6). */
 function normalizeName(name: string): string {
@@ -129,18 +148,33 @@ function reducer(state: GameState, action: Action): GameState {
     }
 
     case "GO_HOME":
-      // Ends any in-progress reveal and returns Home; role config + host name persist
-      // for the session (FR-11, Edge Cases). Used by reveal exit and All Done.
+      // Ends any in-progress reveal/online room and returns Home; role config, host name,
+      // and online name persist for the session (FR-11, Edge Cases). Used by reveal exit,
+      // All Done, and leaving online.
       return {
         ...state,
         screen: "home",
         assignment: null,
         revealIndex: 0,
         revealShown: false,
+        roomCode: null,
+        isModerator: false,
       };
 
     case "GO_CONFIGURE":
       return { ...state, screen: "configure" };
+
+    case "GO_ONLINE_MODE":
+      return { ...state, screen: "onlineMode" };
+
+    case "ENTER_WAITING_ROOM":
+      return {
+        ...state,
+        screen: "waitingRoom",
+        roomCode: action.code,
+        isModerator: action.isModerator,
+        onlineName: action.name,
+      };
 
     default:
       return state;
@@ -166,6 +200,12 @@ type GameContextValue = {
     endReveal: () => void;
     goHome: () => void;
     goConfigure: () => void;
+    goOnlineMode: () => void;
+    enterWaitingRoom: (args: {
+      code: string;
+      isModerator: boolean;
+      name: string;
+    }) => void;
   };
 };
 
@@ -193,8 +233,17 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         nextPlayer: () => dispatch({ type: "NEXT_PLAYER" }),
         // Reveal exit and All Done both return Home (FR-11).
         endReveal: () => dispatch({ type: "GO_HOME" }),
-        goHome: () => dispatch({ type: "GO_HOME" }),
+        goHome: () => {
+          clearRoomSession(); // leaving the room ends the reconnect hint
+          dispatch({ type: "GO_HOME" });
+        },
         goConfigure: () => dispatch({ type: "GO_CONFIGURE" }),
+        goOnlineMode: () => dispatch({ type: "GO_ONLINE_MODE" }),
+        enterWaitingRoom: ({ code, isModerator, name }) => {
+          // Persist a reconnect hint (code + role + name only — no secrets).
+          saveRoomSession({ code, isModerator, name });
+          dispatch({ type: "ENTER_WAITING_ROOM", code, isModerator, name });
+        },
       },
     };
   }, [state]);

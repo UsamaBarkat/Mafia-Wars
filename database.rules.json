@@ -1,0 +1,52 @@
+{
+  "rules": {
+    "rooms": {
+      "$code": {
+        "meta": {
+          ".read": "auth != null",
+          ".write": "auth != null && ((!data.exists() && newData.child('moderatorId').val() === auth.uid) || data.child('moderatorId').val() === auth.uid)",
+          "moderatorId": { ".validate": "newData.isString()" },
+          "status": {
+            ".validate": "newData.isString() && (newData.val() === 'lobby' || newData.val() === 'configuring' || newData.val() === 'dealing' || newData.val() === 'in_game' || newData.val() === 'ended')"
+          },
+          "createdAt": { ".validate": "newData.isNumber()" },
+          "lastActivity": { ".validate": "newData.isNumber()" }
+        },
+
+        "config": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid"
+        },
+
+        "players": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('status').val() === 'lobby'",
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid",
+            "name": { ".validate": "newData.isString() && newData.val().length >= 1 && newData.val().length <= 24" },
+            "connected": { ".validate": "newData.isBoolean()" },
+            "joinedAt": { ".validate": "newData.isNumber()" },
+            "lastSeen": { ".validate": "newData.isNumber()" },
+            "viewed": { ".validate": "newData.isBoolean()" }
+          }
+        },
+
+        "chat": {
+          ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+          "$msgId": {
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['uid','name','text','ts']) && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 24 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 300 && newData.child('ts').isNumber()"
+          }
+        },
+
+        "privateRoles": {
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".validate": "newData.hasChildren(['role']) && newData.child('role').isString()"
+          }
+        }
+      }
+    }
+  }
+}
