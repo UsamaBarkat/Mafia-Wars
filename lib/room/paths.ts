@@ -31,6 +31,50 @@ export const roomPaths = {
     `${ROOMS_ROOT}/${code}/privateRoles/${uid}`,
   /** /rooms/{code}/chat — lobby chat messages keyed by push id. */
   chat: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/chat`,
+
+  // --- 2b game engine ---
+  /** /rooms/{code}/game — phase / round / winner (moderator-written). */
+  game: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/game`,
+  /** /rooms/{code}/players/{uid}/alive — a player's alive flag (moderator-written). */
+  playerAlive: (code: RoomCode, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/players/${uid}/alive`,
+  /** /rooms/{code}/mafiaTeam — per-uid private fellow-Mafia lists. */
+  mafiaTeam: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/mafiaTeam`,
+  /** /rooms/{code}/mafiaTeam/{uid} — one Mafia's teammate list; readable only by that uid. */
+  mafiaTeamEntry: (code: RoomCode, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/mafiaTeam/${uid}`,
+  /** /rooms/{code}/rounds — all rounds keyed by round number. */
+  rounds: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/rounds`,
+  /** /rooms/{code}/rounds/{n} — one round's data. */
+  round: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}`,
+  /** /rooms/{code}/rounds/{n}/nightActions — secret night choices keyed by actor uid. */
+  nightActions: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/nightActions`,
+  /** /rooms/{code}/rounds/{n}/nightActions/{uid} — one actor's secret choice (read own + moderator). */
+  nightAction: (code: RoomCode, n: number, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/nightActions/${uid}`,
+  /** /rooms/{code}/rounds/{n}/nightResults — private per-actor results (e.g. Detective). */
+  nightResults: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/nightResults`,
+  /** /rooms/{code}/rounds/{n}/nightResults/{uid} — one actor's private result; readable only by that uid. */
+  nightResult: (code: RoomCode, n: number, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/nightResults/${uid}`,
+  /** /rooms/{code}/rounds/{n}/nightOutcome — PUBLIC "who died" (moderator-written). */
+  nightOutcome: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/nightOutcome`,
+  /** /rooms/{code}/rounds/{n}/votes — PUBLIC day votes keyed by voter uid. */
+  votes: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/votes`,
+  /** /rooms/{code}/rounds/{n}/votes/{uid} — one player's public vote (write own, alive, day-phase). */
+  vote: (code: RoomCode, n: number, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/votes/${uid}`,
+  /** /rooms/{code}/rounds/{n}/dayOutcome — PUBLIC "who was eliminated" (moderator-written). */
+  dayOutcome: (code: RoomCode, n: number): string =>
+    `${ROOMS_ROOT}/${code}/rounds/${n}/dayOutcome`,
+  /** /rooms/{code}/publicRoles — PUBLIC uid->role reveal, moderator-written ONLY once the
+   *  game has ended (FR-15, D8). */
+  publicRoles: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/publicRoles`,
 };
 
 /** A valid room code is exactly 6 digits. */

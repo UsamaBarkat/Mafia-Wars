@@ -1,16 +1,35 @@
 "use client";
 
 // Moderator post-start view (FR-15 / D6). After the game starts, the moderator sees the
-// live per-player "has viewed their role" status — and NEVER any role (the moderator
-// can't even read privateRoles per the task-7 rules). 2a ends when everyone has viewed.
+// live per-player "has viewed their role" status — and NEVER any role directly (the
+// moderator's device CAN read privateRoles as of task 2/2b, to resolve the game, but the
+// UI never displays them — FR-16). 2a ends when everyone has viewed; from there the
+// moderator can Begin Night 1 (spec-2b FR-1).
 
+import { useState } from "react";
 import { useGame } from "@/components/GameProvider";
-import { useRoomPlayers } from "@/lib/room/subscriptions";
+import {
+  useGameState,
+  useNightActions,
+  useRoomPlayers,
+  useRoomVotes,
+} from "@/lib/room/subscriptions";
+import { beginNight1 } from "@/lib/game/beginNight1";
+import { resolveNightOnClient } from "@/lib/game/resolveNightOnClient";
+import { resolveDayOnClient } from "@/lib/game/resolveDayOnClient";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { GameOverScreen } from "@/components/screens/GameOverScreen";
 
 export function ModeratorStarted() {
   const { state, actions } = useGame();
-  const players = useRoomPlayers(state.roomCode);
+  const code = state.roomCode;
+  const players = useRoomPlayers(code);
+  const game = useGameState(code);
+  const nightActions = useNightActions(code, game.data?.round ?? null);
+  const votes = useRoomVotes(code, game.data?.round ?? null);
+  const [starting, setStarting] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const [endingDay, setEndingDay] = useState(false);
 
   const playerList = Object.values(players.data ?? {}).sort(
     (a, b) => a.joinedAt - b.joinedAt,
@@ -18,6 +37,125 @@ export function ModeratorStarted() {
   const total = playerList.length;
   const viewedCount = playerList.filter((p) => p.viewed === true).length;
   const allViewed = total > 0 && viewedCount === total;
+
+  const handleBeginNight1 = async () => {
+    if (!code || !allViewed || starting) return;
+    setStarting(true);
+    try {
+      const playerUids = Object.keys(players.data ?? {});
+      await beginNight1(code, playerUids);
+    } catch (e) {
+      console.error("beginNight1 failed:", e);
+      setStarting(false);
+    }
+  };
+
+  const handleEndNight = async () => {
+    if (!code || !game.data || ending) return;
+    setEnding(true);
+    try {
+      await resolveNightOnClient(code, game.data.round);
+    } catch (e) {
+      console.error("resolveNightOnClient failed:", e);
+      setEnding(false);
+    }
+  };
+
+  const handleEndDay = async () => {
+    if (!code || !game.data || endingDay) return;
+    setEndingDay(true);
+    try {
+      await resolveDayOnClient(code, game.data.round);
+    } catch (e) {
+      console.error("resolveDayOnClient failed:", e);
+      setEndingDay(false);
+    }
+  };
+
+  // Once Night 1 has begun, hand off to the phase-specific console.
+  if (game.data) {
+    if (game.data.phase === "night") {
+      const alivePlayerCount = playerList.filter((p) => p.alive === true).length;
+      const submittedCount = Object.keys(nightActions.data ?? {}).length;
+
+      return (
+        <main className="relative flex min-h-[100dvh] flex-col items-center bg-neutral-950 px-6 py-16 text-white">
+          <BackArrow onBack={actions.goHome} label="Back to Home" />
+
+          <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+            <h1 className="text-center text-3xl font-extrabold tracking-tight text-emerald-500">
+              Night {game.data.round}
+            </h1>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-center">
+              <p className="text-sm text-neutral-300">
+                <span className="font-bold tabular-nums text-emerald-400">
+                  {submittedCount}
+                </span>{" "}
+                of <span className="font-bold tabular-nums">{alivePlayerCount}</span> living
+                players have acted
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Not everyone needs to act — ending the night resolves whatever was
+                submitted.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleEndNight}
+              disabled={ending}
+              className="rounded-xl bg-emerald-600 px-6 py-4 text-xl font-bold uppercase tracking-wide text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600"
+            >
+              {ending ? "Resolving…" : "End Night"}
+            </button>
+          </div>
+        </main>
+      );
+    }
+
+    if (game.data.phase === "day") {
+      const alivePlayerCount = playerList.filter((p) => p.alive === true).length;
+      const votedCount = Object.keys(votes.data ?? {}).length;
+
+      return (
+        <main className="relative flex min-h-[100dvh] flex-col items-center bg-neutral-950 px-6 py-16 text-white">
+          <BackArrow onBack={actions.goHome} label="Back to Home" />
+
+          <div className="mx-auto flex w-full max-w-md flex-col gap-6">
+            <h1 className="text-center text-3xl font-extrabold tracking-tight text-emerald-500">
+              Day {game.data.round}
+            </h1>
+
+            <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-center">
+              <p className="text-sm text-neutral-300">
+                <span className="font-bold tabular-nums text-emerald-400">
+                  {votedCount}
+                </span>{" "}
+                of <span className="font-bold tabular-nums">{alivePlayerCount}</span> living
+                players have voted
+              </p>
+              <p className="mt-1 text-xs text-neutral-500">
+                Votes are public and auditable — the moderator isn&apos;t trusted here.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleEndDay}
+              disabled={endingDay}
+              className="rounded-xl bg-emerald-600 px-6 py-4 text-xl font-bold uppercase tracking-wide text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600"
+            >
+              {endingDay ? "Resolving…" : "End Day"}
+            </button>
+          </div>
+        </main>
+      );
+    }
+
+    // Ended — same game-over screen everyone else sees (FR-15).
+    return <GameOverScreen />;
+  }
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col items-center bg-neutral-950 px-6 py-16 text-white">
@@ -69,6 +207,17 @@ export function ModeratorStarted() {
             ? "Everyone has seen their role — you're all set!"
             : "Waiting for everyone to see their role…"}
         </p>
+
+        {allViewed && (
+          <button
+            type="button"
+            onClick={handleBeginNight1}
+            disabled={starting}
+            className="rounded-xl bg-emerald-600 px-6 py-4 text-xl font-bold uppercase tracking-wide text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-emerald-600"
+          >
+            {starting ? "Starting…" : "Begin Night 1"}
+          </button>
+        )}
       </div>
     </main>
   );

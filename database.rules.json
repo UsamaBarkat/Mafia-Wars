@@ -27,7 +27,11 @@
             "connected": { ".validate": "newData.isBoolean()" },
             "joinedAt": { ".validate": "newData.isNumber()" },
             "lastSeen": { ".validate": "newData.isNumber()" },
-            "viewed": { ".validate": "newData.isBoolean()" }
+            "viewed": { ".validate": "newData.isBoolean()" },
+            "alive": {
+              ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              ".validate": "newData.isBoolean() && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid"
+            }
           }
         },
 
@@ -40,10 +44,77 @@
         },
 
         "privateRoles": {
+          ".read": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
           ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
           "$uid": {
             ".read": "auth != null && auth.uid === $uid",
             ".validate": "newData.hasChildren(['role']) && newData.child('role').isString()"
+          }
+        },
+
+        "game": {
+          ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "phase": { ".validate": "newData.isString() && (newData.val() === 'night' || newData.val() === 'day' || newData.val() === 'ended')" },
+          "round": { ".validate": "newData.isNumber()" },
+          "winner": { ".validate": "newData.val() === 'town' || newData.val() === 'mafia'" }
+        },
+
+        "mafiaTeam": {
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid"
+          }
+        },
+
+        "publicRoles": {
+          ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid && root.child('rooms').child($code).child('game').child('phase').val() === 'ended'",
+          "$uid": {
+            ".validate": "newData.isString()"
+          }
+        },
+
+        "rounds": {
+          "$n": {
+            "nightActions": {
+              ".read": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              "$uid": {
+                ".read": "auth != null && auth.uid === $uid",
+                ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night'",
+                ".validate": "newData.hasChildren(['role','action','targetUid']) && newData.child('role').isString() && (newData.child('action').val() === 'kill' || newData.child('action').val() === 'protect' || newData.child('action').val() === 'investigate') && newData.child('targetUid').isString()"
+              }
+            },
+
+            "nightResults": {
+              ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              "$uid": {
+                ".read": "auth != null && auth.uid === $uid",
+                ".validate": "newData.hasChildren(['result']) && (newData.child('result').val() === 'mafia' || newData.child('result').val() === 'not-mafia')"
+              }
+            },
+
+            "nightOutcome": {
+              ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+              ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              ".validate": "newData.hasChildren(['resolvedAt']) && newData.child('resolvedAt').isNumber()",
+              "eliminatedUid": { ".validate": "newData.isString()" }
+            },
+
+            "votes": {
+              ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+              "$uid": {
+                ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'day'",
+                ".validate": "newData.hasChildren(['targetUid','votedAt']) && newData.child('targetUid').isString() && newData.child('votedAt').isNumber()"
+              }
+            },
+
+            "dayOutcome": {
+              ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+              ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              ".validate": "newData.hasChildren(['resolvedAt']) && newData.child('resolvedAt').isNumber()",
+              "eliminatedUid": { ".validate": "newData.isString()" }
+            }
           }
         }
       }
