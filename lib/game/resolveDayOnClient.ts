@@ -17,20 +17,27 @@
 // `game.phase === 'ended'`, and Security Rules read `root` as it exists BEFORE the
 // current write, even within one multi-path update, so that gate can't be satisfied by a
 // phase write landing in the same atomic call (confirmed against the emulator).
+//
+// Every network call below is wrapped in withTimeout (see withTimeout.ts) so a stalled
+// read/write fails clearly instead of hanging forever — same fix as resolveNightOnClient.ts.
 
 import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveDay } from "./resolveDay";
 import { checkWin } from "./checkWin";
+import { withTimeout } from "./withTimeout";
 import type { PlayerEntry, PrivateRoleEntry, Vote } from "../room/types";
 
 export async function resolveDayOnClient(code: string, round: number): Promise<void> {
-  const [votesSnap, rolesSnap, playersSnap] = await Promise.all([
-    get(ref(db, roomPaths.votes(code, round))),
-    get(ref(db, roomPaths.privateRoles(code))),
-    get(ref(db, roomPaths.players(code))),
-  ]);
+  const [votesSnap, rolesSnap, playersSnap] = await withTimeout(
+    Promise.all([
+      get(ref(db, roomPaths.votes(code, round))),
+      get(ref(db, roomPaths.privateRoles(code))),
+      get(ref(db, roomPaths.players(code))),
+    ]),
+    "resolveDayOnClient: reading votes/privateRoles/players",
+  );
   const votes = (votesSnap.val() ?? {}) as Record<string, Vote>;
   const privateRoles = (rolesSnap.val() ?? {}) as Record<string, PrivateRoleEntry>;
   const players = (playersSnap.val() ?? {}) as Record<string, PlayerEntry>;
@@ -65,10 +72,13 @@ export async function resolveDayOnClient(code: string, round: number): Promise<v
     updates[`${roomPaths.game(code)}/round`] = round + 1;
   }
 
-  await update(ref(db), updates);
+  await withTimeout(update(ref(db), updates), "resolveDayOnClient: writing outcome");
 
   // Second write, only once phase is genuinely "ended" in the database (see header note).
   if (winner) {
-    await update(ref(db), { [roomPaths.publicRoles(code)]: roles });
+    await withTimeout(
+      update(ref(db), { [roomPaths.publicRoles(code)]: roles }),
+      "resolveDayOnClient: writing publicRoles",
+    );
   }
 }

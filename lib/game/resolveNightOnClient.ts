@@ -17,20 +17,27 @@
 // Sequencing them is the only way to satisfy the rule as written (confirmed against the
 // emulator); the trust model here is already the moderator's device (D5), so a tiny
 // window between "ended" and "roles visible" is a cosmetic loading state, not a security gap.
+//
+// Every network call below is wrapped in withTimeout (see withTimeout.ts) so a stalled
+// read/write fails clearly instead of hanging forever.
 
 import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveNight } from "./resolveNight";
 import { checkWin } from "./checkWin";
+import { withTimeout } from "./withTimeout";
 import type { NightAction, PlayerEntry, PrivateRoleEntry } from "../room/types";
 
 export async function resolveNightOnClient(code: string, round: number): Promise<void> {
-  const [actionsSnap, rolesSnap, playersSnap] = await Promise.all([
-    get(ref(db, roomPaths.nightActions(code, round))),
-    get(ref(db, roomPaths.privateRoles(code))),
-    get(ref(db, roomPaths.players(code))),
-  ]);
+  const [actionsSnap, rolesSnap, playersSnap] = await withTimeout(
+    Promise.all([
+      get(ref(db, roomPaths.nightActions(code, round))),
+      get(ref(db, roomPaths.privateRoles(code))),
+      get(ref(db, roomPaths.players(code))),
+    ]),
+    "resolveNightOnClient: reading nightActions/privateRoles/players",
+  );
   const actions = (actionsSnap.val() ?? {}) as Record<string, NightAction>;
   const privateRoles = (rolesSnap.val() ?? {}) as Record<string, PrivateRoleEntry>;
   const players = (playersSnap.val() ?? {}) as Record<string, PlayerEntry>;
@@ -67,10 +74,13 @@ export async function resolveNightOnClient(code: string, round: number): Promise
     updates[`${roomPaths.game(code)}/phase`] = "day";
   }
 
-  await update(ref(db), updates);
+  await withTimeout(update(ref(db), updates), "resolveNightOnClient: writing outcome");
 
   // Second write, only once phase is genuinely "ended" in the database (see header note).
   if (winner) {
-    await update(ref(db), { [roomPaths.publicRoles(code)]: roles });
+    await withTimeout(
+      update(ref(db), { [roomPaths.publicRoles(code)]: roles }),
+      "resolveNightOnClient: writing publicRoles",
+    );
   }
 }
