@@ -1,5 +1,8 @@
 {
   "projects": {
-    "default": "demo-mafia-wars"
-  }
+    "default": "demo-mafia-wars",
+    "production": "mafiawarsonline-3756f"
+  },
+  "targets": {},
+  "etags": {}
 }
