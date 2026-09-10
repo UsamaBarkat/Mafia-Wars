@@ -174,23 +174,52 @@ export function useTeammateNightActions(
   const [actions, setActions] = useState<Record<string, NightAction>>({});
   const matesKey = mateUids.join(",");
 
+  // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+  console.log("[MAFIA-DEBUG] useTeammateNightActions render:", { code, round, mateUids, matesKey });
+
   useEffect(() => {
+    // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+    console.log("[MAFIA-DEBUG] useTeammateNightActions effect running:", { code, round, matesKey });
+
     setActions({});
-    if (!code || round === null || matesKey === "") return;
+    if (!code || round === null || matesKey === "") {
+      // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+      console.log("[MAFIA-DEBUG] useTeammateNightActions effect BAILED OUT (no listeners attached):", {
+        codeMissing: !code,
+        roundMissing: round === null,
+        matesKeyEmpty: matesKey === "",
+      });
+      return;
+    }
 
     const unsubscribes = matesKey.split(",").map((mateUid) => {
-      const nodeRef = ref(db, roomPaths.nightAction(code, round, mateUid));
-      return onValue(nodeRef, (snap) => {
-        setActions((prev) => {
-          if (!snap.exists()) {
-            if (!(mateUid in prev)) return prev;
-            const next = { ...prev };
-            delete next[mateUid];
-            return next;
-          }
-          return { ...prev, [mateUid]: snap.val() as NightAction };
-        });
-      });
+      const path = roomPaths.nightAction(code, round, mateUid);
+      // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+      console.log("[MAFIA-DEBUG] attaching listener for teammate:", mateUid, "at path:", path);
+      const nodeRef = ref(db, path);
+      return onValue(
+        nodeRef,
+        (snap) => {
+          // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+          console.log("[MAFIA-DEBUG] read SUCCEEDED for teammate:", mateUid, "exists:", snap.exists(), "value:", snap.val());
+          setActions((prev) => {
+            if (!snap.exists()) {
+              if (!(mateUid in prev)) return prev;
+              const next = { ...prev };
+              delete next[mateUid];
+              return next;
+            }
+            return { ...prev, [mateUid]: snap.val() as NightAction };
+          });
+        },
+        (err) => {
+          // Without this, a denied read (e.g. Security Rules not deployed to match
+          // this build) fails completely silently — the listener just never fires
+          // again, so the "haven't agreed on a target" warning can never show even
+          // when a real mismatch exists, with no visible sign anything is wrong.
+          console.error(`useTeammateNightActions: read denied for ${mateUid}:`, err);
+        },
+      );
     });
 
     return () => unsubscribes.forEach((unsubscribe) => unsubscribe());

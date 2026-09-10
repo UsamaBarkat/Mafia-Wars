@@ -6,7 +6,7 @@
 // UI never displays them — FR-16). 2a ends when everyone has viewed; from there the
 // moderator can Begin Night 1 (spec-2b FR-1).
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGame } from "@/components/GameProvider";
 import { useAuthUid } from "@/lib/useAuthUid";
 import {
@@ -41,6 +41,24 @@ export function ModeratorStarted() {
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
   const [endingDay, setEndingDay] = useState(false);
+
+  // This component stays mounted for the whole game (it's returned unconditionally by
+  // OnlineRevealScreen for the moderator, which itself renders continuously while the
+  // room is in_game) — night and day recur every round, but `ending`/`endingDay` were
+  // only ever reset to false in their catch branch, on the assumption success routes
+  // away permanently (true for `starting`/Begin Night 1, reachable once per game; false
+  // here). After a successful End Night/End Day, the stale flag would sit at true,
+  // invisible until that phase's branch rendered again next round — then the button
+  // opened already showing "Resolving…", disabled, with nothing actually in flight.
+  // Reset each flag whenever we're no longer in the phase it belongs to (mirrors the
+  // WaitingRoomScreen "Starting…" fix for Play Again).
+  const phase = game.data?.phase ?? null;
+  useEffect(() => {
+    if (phase !== "night") setEnding(false);
+  }, [phase]);
+  useEffect(() => {
+    if (phase !== "day") setEndingDay(false);
+  }, [phase]);
 
   const playerList = Object.values(players.data ?? {}).sort(
     (a, b) => a.joinedAt - b.joinedAt,

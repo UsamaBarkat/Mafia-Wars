@@ -44,6 +44,16 @@ export function NightScreen() {
   const mateUids = myMafiaTeam.data?.mates ?? [];
   const teammateActions = useTeammateNightActions(code, round, mateUids);
 
+  // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+  console.log("[MAFIA-DEBUG] NightScreen render:", {
+    uid,
+    myMafiaTeamLoading: myMafiaTeam.loading,
+    myMafiaTeamData: myMafiaTeam.data,
+    myMafiaTeamError: myMafiaTeam.error,
+    mateUids,
+    teammateActions,
+  });
+
   const role = myRole.data?.role ?? null;
   const iAmAlive = uid ? players.data?.[uid]?.alive === true : false;
 
@@ -97,6 +107,17 @@ export function NightScreen() {
       .map((a) => a.targetUid);
     const knownTargets = new Set(myTarget ? [myTarget, ...teammateKillTargets] : []);
     const targetsDisagree = knownTargets.size > 1;
+
+    // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
+    console.log("[MAFIA-DEBUG] Mafia branch comparison:", {
+      myActionLoading: myAction.loading,
+      myActionData: myAction.data,
+      myTarget,
+      teammateActionsRaw: teammateActions,
+      teammateKillTargets,
+      knownTargets: [...knownTargets],
+      targetsDisagree,
+    });
 
     return (
       <div className="flex flex-col gap-3">
