@@ -101,6 +101,7 @@ export function NightScreen() {
             uid={uid}
             name={state.onlineName || "Player"}
             canPost
+            label="Mafia Chat"
           />
         )}
       </div>

@@ -174,6 +174,7 @@ export function ModeratorStarted() {
                 uid={uid}
                 name="Moderator"
                 canPost={false}
+                label="Day Discussion"
               />
             )}
           </div>

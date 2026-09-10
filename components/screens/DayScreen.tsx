@@ -72,6 +72,7 @@ export function DayScreen() {
           uid={uid}
           name={state.onlineName || "Player"}
           canPost={iAmAlive}
+          label="Day Discussion"
         />
       )}
     </div>

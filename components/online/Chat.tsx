@@ -7,6 +7,8 @@
 // control — the same read-only-vs-interactive split VotePanel already uses for `canVote`
 // (an eliminated player reading Day chat, or anyone denied Mafia chat by the rules). The
 // list scrolls within a bounded height and auto-scrolls to the newest message on a phone.
+// `label` defaults to "Chat" (unchanged for lobby chat) — Mafia/Day chat pass a distinct
+// one so the panels visibly read as different channels, not three copies of the same one.
 
 import { useEffect, useRef, useState } from "react";
 import { useRoomChat } from "@/lib/room/subscriptions";
@@ -17,11 +19,13 @@ export function Chat({
   uid,
   name,
   canPost = true,
+  label = "Chat",
 }: {
   path: string;
   uid: string | null;
   name: string;
   canPost?: boolean;
+  label?: string;
 }) {
   const chat = useRoomChat(path);
   const messages = chat.data ?? [];
@@ -48,7 +52,7 @@ export function Chat({
   return (
     <div className="flex flex-col rounded-2xl border border-neutral-800 bg-neutral-900 p-4">
       <span className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-300">
-        Chat
+        {label}
       </span>
 
       <div
