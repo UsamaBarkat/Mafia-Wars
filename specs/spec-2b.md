@@ -42,7 +42,7 @@ This builds directly on [spec-2a.md](spec-2a.md) and the research in [research-2
 
 ### Night resolution
 
-- FR‑7 — The **Mafia kill target** is the living player with the most Mafia picks (ties broken randomly via a cryptographically secure method — never `Math.random`). If the **Doctor protected that same player**, **no one dies**; otherwise that player is **eliminated** (marked not‑alive).
+- FR‑7 — The **Mafia kill succeeds only if every submitted Mafia pick names the same target** *(revised — see D6)*. If two or more Mafia submit **different** targets and the night ends before they converge, **no one dies** — the same outcome as a Doctor-saved kill, not a random pick. (A Mafia who never submits doesn't count as disagreeing — see D6/FR‑5.) If the Mafia agree on a target and the **Doctor protected that same player**, **no one dies**; otherwise the agreed target is **eliminated** (marked not‑alive).
 - FR‑8 — The **Detective** privately learns **whether their investigated target is Mafia** (a private result readable only by the Detective). No other player sees it.
 - FR‑9 — After resolution, a **public night outcome** is shown to everyone — **who was eliminated, or "no one died"** — **without revealing any role**. The game advances to **Day** (unless a win condition is met — FR‑14/15).
 
@@ -74,12 +74,12 @@ This builds directly on [spec-2a.md](spec-2a.md) and the research in [research-2
 ## Edge Cases & Rules
 
 - **Night first.** Round 1 opens on the **night** phase.
-- **Mafia know each other; nobody else knows any role.** Each Mafia privately sees their teammates (needed to coordinate the majority kill); all other roles see only their own role.
+- **Mafia know each other; nobody else knows any role.** Each Mafia privately sees their teammates (needed to agree on a shared kill target — D6); all other roles see only their own role.
 - **Doctor.** May protect anyone including **themselves**; repeated protection of the same player across nights is **allowed** (no restriction in v1).
 - **Detective.** Learns only **Mafia / not‑Mafia** for the target, not the exact role.
 - **Custom roles** (added in the 2a config) are treated as **power‑less townsfolk** in 2b: no night action, and they **count as Town** for win detection.
 - **Death is public, role is not.** When a player is eliminated, everyone sees **who** died (they leave voting/acting), but **not their role** — roles stay hidden until game end.
-- **Ties / Skip → no elimination**, both at night (Doctor cancels) and day (tie or Skip).
+- **Ties / Skip / disagreement → no elimination.** At night: the Doctor cancels the agreed target, or the Mafia simply never converge on one target (D6). At day: a vote tie or a Skip win.
 - **Rule‑enforced integrity (no trust needed):** each player writes only their **own** action/vote; only **alive** players may act/vote; actions only in **night**, votes only in **day** (phase‑gated); secret night actions are unreadable by other players (per‑uid read + no cascade); only the **moderator** writes outcomes (eliminations, alive flips, phase/round, winner). Public day votes make the day tally **auditable**.
 - **Trust‑dependent (moderator's device):** correctly combining secret night actions, the detective's result, and win detection. Same acceptance as the 2a deal.
 - **Moderator sees no roles in‑game.** The moderator's device reads roles to resolve, but the moderator UI does not display them until the end.
@@ -103,7 +103,7 @@ This builds directly on [spec-2a.md](spec-2a.md) and the research in [research-2
 - [x] After the 2a deal, the moderator can **Begin Night 1**; players enter the game and all start **alive**. *(task 4 — 12/12 emulator checks; re-confirmed in task 13's end-to-end pass)*
 - [x] Each **Mafia** is privately shown their fellow Mafia; no non‑Mafia can see anyone's role. *(task 4; re-confirmed in task 13's end-to-end pass — Detective denied reading M1's mafiaTeam, Civilian denied reading M1's privateRole)*
 - [x] At night, Mafia / Doctor / Detective each submit a **secret** target; another player **cannot** read that choice from the database or UI. *(task 5 — 7/7 emulator checks; re-confirmed in task 13)*
-- [x] With 2 Mafia, the kill target is the **majority** of their picks; a **Doctor protecting that target cancels the kill** (no death). *(task 3 pure logic + task 6 client resolver — 14/14 emulator checks incl. self-save; task 13 re-ran BOTH the majority-kill-executes and the Doctor-cancels-the-actual-target cases fresh)*
+- [x] With 2 Mafia, the kill target is the **majority** of their picks; a **Doctor protecting that target cancels the kill** (no death). *(task 3 pure logic + task 6 client resolver — 14/14 emulator checks incl. self-save; task 13 re-ran BOTH the majority-kill-executes and the Doctor-cancels-the-actual-target cases fresh)* — **superseded by D6's revision** (post-2c playtesting): with 2+ Mafia, the kill now requires all submitted picks to name the same target; disagreement ⇒ no death, same as a Doctor save. Re-verification pending.
 - [x] The Detective **privately** learns whether their target is Mafia; no one else sees the result. *(task 6; re-confirmed in task 13 — Civilian denied reading the Detective's private nightResults)*
 - [x] Ending the night shows a **public** outcome ("X was eliminated" / "no one died") **without revealing roles**, then advances to Day. *(task 6; re-confirmed in task 13 — outcome object has only `eliminatedUid`+`resolvedAt`, no role field)*
 - [x] At day, all **alive** players vote **publicly** (or Skip), see the **live tally**, and can **change** their vote; **eliminated players cannot vote**. *(task 7 — 6/6 emulator checks; task 13 re-ran a live vote CHANGE plus the dead-vote-denied case fresh)*
@@ -125,12 +125,12 @@ Recorded for traceability; all fold into the requirements above.
 - **D3 — Moderator gets read access to `privateRoles`** for resolution and win detection; player‑to‑player secrecy is unchanged. *(→ Backend, FR‑7/8/14)*
 - **D4 — No in‑game chat** in v1; day discussion is out loud. *(→ Out of Scope)*
 - **D5 — Stay on Spark**, moderator's device is the resolver (same trust model as the 2a deal). *(→ Backend)*
-- **D6 — Multi‑Mafia = majority target**, ties broken randomly (crypto‑secure) on the resolver. *(→ FR‑7)*
+- **D6 — Multi‑Mafia kill requires unanimous agreement on one target; disagreement means no death, not a random tie-break.** *(→ FR‑7)* *(Revised — original v1 decision was "majority target, ties broken randomly (crypto‑secure) on the resolver." Changed after real playtesting once Mafia chat ([spec-2c.md](spec-2c.md)) gave Mafia an actual channel to coordinate on a shared target during the night; with that coordination possible, letting the resolver silently override a genuine disagreement with a random pick felt like the app deciding the kill instead of the Mafia team. The `secureShuffle`-based tie-break code itself was not deleted — it's the same general-purpose shuffle `lib/assignment.ts` already uses for the role deal — only `resolveNight.ts`'s kill-target logic stopped calling it for this case.)*
 - **D7 — Day: no elimination on a tie; a "Skip" vote is allowed.** *(→ FR‑10/12)*
 - **D8 — Roles revealed only at game end**, not on death. *(→ FR‑15, Edge Cases)* **Mechanism (resolved at task 9):** a moderator‑written public `publicRoles` map (uid→role), gated so it's writable only once `game.phase === 'ended'` — not opening `privateRoles` reads, to avoid touching the core secrecy rule and to keep an explicit, auditable "reveal" write (matching `nightOutcome`/`dayOutcome`/`mafiaTeam`'s pattern).
 - **D9 — Mafia win at parity** (Mafia ≥ Town); Town wins when Mafia = 0. *(→ FR‑14)*
 - **D10 — Manual phase advance** by the moderator (no timers). *(→ FR‑6/11/16)*
-- **Derived — Mafia know each other** (privately shown teammates), required by the majority‑target model. *(→ FR‑2, Edge Cases)* — flag for review.
+- **Derived — Mafia know each other** (privately shown teammates), required by the unanimous-target model (D6). *(→ FR‑2, Edge Cases)* — flag for review.
 - **Derived — Night first;** Doctor may self‑save and repeat‑save; Detective learns team (Mafia / not) only. *(→ Edge Cases)* — sensible defaults, adjustable.
 
 ---

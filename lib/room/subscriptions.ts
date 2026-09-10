@@ -144,7 +144,12 @@ export function useNightActions(
   );
 }
 
-/** This client's OWN night action for a round only — never another player's (rules). */
+/** One actor's night action for a round, keyed by uid. Always readable for one's own
+ *  uid; a living Mafia may ALSO read another Mafia's kill entry specifically (spec-2b
+ *  FR-7's D6 revision — the shared-uid rules grant added for the live "haven't agreed"
+ *  warning). Doctor/Detective actions stay fully private to their owner + the
+ *  moderator, unchanged. Pass the caller's own uid for "my action", or a teammate's
+ *  uid to read their kill pick. */
 export function useMyNightAction(
   code: string | null,
   round: number | null,
@@ -153,6 +158,45 @@ export function useMyNightAction(
   return useDbValue<NightAction>(
     code && round !== null && uid ? roomPaths.nightAction(code, round, uid) : null,
   );
+}
+
+/** Every uid in `mateUids`' submitted night action for a round, keyed by uid — only
+ *  ever the readable ones (a living Mafia's own kill entries, per the rules grant
+ *  documented on `useMyNightAction`). Used for the live "haven't agreed on a target"
+ *  warning (spec-2b D6 revision); never rendered as anyone's role. A plain
+ *  `useDbValue` call can't do this since the number of teammates varies between
+ *  rooms/renders — this manages one child listener per uid inside a single hook. */
+export function useTeammateNightActions(
+  code: string | null,
+  round: number | null,
+  mateUids: string[],
+): Record<string, NightAction> {
+  const [actions, setActions] = useState<Record<string, NightAction>>({});
+  const matesKey = mateUids.join(",");
+
+  useEffect(() => {
+    setActions({});
+    if (!code || round === null || matesKey === "") return;
+
+    const unsubscribes = matesKey.split(",").map((mateUid) => {
+      const nodeRef = ref(db, roomPaths.nightAction(code, round, mateUid));
+      return onValue(nodeRef, (snap) => {
+        setActions((prev) => {
+          if (!snap.exists()) {
+            if (!(mateUid in prev)) return prev;
+            const next = { ...prev };
+            delete next[mateUid];
+            return next;
+          }
+          return { ...prev, [mateUid]: snap.val() as NightAction };
+        });
+      });
+    });
+
+    return () => unsubscribes.forEach((unsubscribe) => unsubscribe());
+  }, [code, round, matesKey]);
+
+  return actions;
 }
 
 /** PUBLIC night outcome for a round — who died, or no one (never a role, D8). Absent

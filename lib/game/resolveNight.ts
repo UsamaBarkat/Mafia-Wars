@@ -2,10 +2,12 @@
 // Runs on the moderator's device (the "resolver" — spec-2b D5): it reads the
 // secret night actions plus the true roles (moderator-read of privateRoles, D3)
 // and computes the PUBLIC outcome (who died) alongside each Detective's PRIVATE
-// finding. Source of truth: spec-2b FR-7 (majority kill + Doctor cancel),
-// FR-8 (Detective learns Mafia/not-Mafia), D6 (crypto-secure tie-break).
+// finding. Source of truth: spec-2b FR-7 (unanimous kill + Doctor cancel),
+// FR-8 (Detective learns Mafia/not-Mafia), D6 (revised post-2c: Mafia must
+// unanimously agree on one target — disagreement means no death, not a random
+// tie-break; see spec-2b.md's D6 note for why this changed after Mafia chat
+// made real coordination possible).
 
-import { secureShuffle } from "../shuffle";
 import type { NightAction, NightResult } from "../room/types";
 
 // Role NAMES exactly as stored in privateRoles (must match lib/roles.ts).
@@ -34,14 +36,14 @@ export function resolveNight(
   actions: Record<string, NightAction>,
   roles: Record<string, string>,
 ): NightResolution {
-  const killVotes: Record<string, number> = {}; // targetUid -> Mafia picks
+  const killTargets = new Set<string>(); // distinct targetUids picked by Mafia
   const protectedUids = new Set<string>();
   const detectiveResults: Record<string, NightResult> = {};
 
   for (const [uid, action] of Object.entries(actions)) {
     const role = roles[uid];
     if (role === MAFIA && action.action === "kill") {
-      killVotes[action.targetUid] = (killVotes[action.targetUid] ?? 0) + 1;
+      killTargets.add(action.targetUid);
     } else if (role === DOCTOR && action.action === "protect") {
       protectedUids.add(action.targetUid);
     } else if (role === DETECTIVE && action.action === "investigate") {
@@ -54,24 +56,15 @@ export function resolveNight(
     }
   }
 
-  const killTarget = pickKillTarget(killVotes);
-  // A Doctor protecting the kill target cancels the death (FR-7).
+  // The kill succeeds only if every Mafia who submitted named the SAME target (D6,
+  // revised after real playtesting once Mafia chat made coordination possible). A
+  // solo Mafia, or a team where only one submitted, trivially has one distinct
+  // target — that still counts as agreement (FR-5: not acting isn't disagreeing).
+  // Two or more distinct targets means they didn't converge, so the kill fails —
+  // same as a Doctor-saved kill, not a random pick between them.
+  const killTarget = killTargets.size === 1 ? [...killTargets][0] : null;
   const eliminatedUid =
     killTarget !== null && !protectedUids.has(killTarget) ? killTarget : null;
 
   return { eliminatedUid, detectiveResults };
-}
-
-/**
- * The player with the most Mafia picks. A tie between targets is broken with a
- * cryptographically secure shuffle (D6) — never Math.random. Returns null when
- * no Mafia targeted anyone.
- */
-function pickKillTarget(killVotes: Record<string, number>): string | null {
-  const targets = Object.keys(killVotes);
-  if (targets.length === 0) return null;
-  const max = Math.max(...targets.map((t) => killVotes[t]));
-  const leaders = targets.filter((t) => killVotes[t] === max);
-  // One clear leader wins outright; otherwise pick uniformly at random.
-  return leaders.length === 1 ? leaders[0] : secureShuffle(leaders)[0];
 }

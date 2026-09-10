@@ -14,6 +14,7 @@ import {
   useMyNightAction,
   useMyRole,
   useRoomPlayers,
+  useTeammateNightActions,
 } from "@/lib/room/subscriptions";
 import { submitNightAction } from "@/lib/game/submitNightAction";
 import { roomPaths } from "@/lib/room/paths";
@@ -38,6 +39,10 @@ export function NightScreen() {
   const myMafiaTeam = useMyMafiaTeam(code, uid);
   const round = game.data?.round ?? null;
   const myAction = useMyNightAction(code, round, uid);
+  // Called unconditionally (before any early return below) per rules of hooks — a
+  // no-op for non-Mafia, since myMafiaTeam.data is only ever populated for Mafia.
+  const mateUids = myMafiaTeam.data?.mates ?? [];
+  const teammateActions = useTeammateNightActions(code, round, mateUids);
 
   const role = myRole.data?.role ?? null;
   const iAmAlive = uid ? players.data?.[uid]?.alive === true : false;
@@ -72,13 +77,27 @@ export function NightScreen() {
   };
 
   if (role === MAFIA) {
-    const mateUids = new Set(myMafiaTeam.data?.mates ?? []);
-    const mateNames = [...mateUids]
+    const mateUidSet = new Set(mateUids);
+    const mateNames = [...mateUidSet]
       .map((mateUid) => players.data?.[mateUid]?.name)
       .filter((name): name is string => Boolean(name));
     // Kill targets exclude self (targetsExcludingSelf) AND fellow Mafia — a Mafia has no
     // reason to eliminate their own team, mirroring the self-target exclusion's reasoning.
-    const killTargets = targetsExcludingSelf.filter((t) => !mateUids.has(t.uid));
+    const killTargets = targetsExcludingSelf.filter((t) => !mateUidSet.has(t.uid));
+
+    // Live "haven't agreed" warning (spec-2b D6 revision, post-2c playtesting): the kill
+    // now requires every Mafia to submit the SAME target (resolveNight.ts), so surface a
+    // mismatch as soon as it's visible instead of letting it be a surprise at resolution.
+    // Only counts targets we actually know about — a teammate who hasn't submitted yet
+    // isn't "disagreeing," just not decided (mirrors resolveNight's own treatment of a
+    // non-submitting Mafia as agreement, not a vote against).
+    const myTarget = myAction.data?.targetUid ?? null;
+    const teammateKillTargets = Object.values(teammateActions)
+      .filter((a) => a.action === "kill")
+      .map((a) => a.targetUid);
+    const knownTargets = new Set(myTarget ? [myTarget, ...teammateKillTargets] : []);
+    const targetsDisagree = knownTargets.size > 1;
+
     return (
       <div className="flex flex-col gap-3">
         {mateNames.length > 0 && (
@@ -92,6 +111,12 @@ export function NightScreen() {
           submittedUid={myAction.data?.targetUid ?? null}
           onSubmit={(targetUid) => handleSubmit("kill", targetUid)}
         />
+        {targetsDisagree && (
+          <p className="rounded-xl border border-amber-700 bg-amber-950/40 px-3 py-2 text-center text-sm text-amber-300">
+            You and your fellow Mafia haven&apos;t agreed on a target — no one will die
+            tonight unless you match.
+          </p>
+        )}
         {/* Mafia-only chat (spec-2c FR-1..FR-5) — only Mafia ever reach this branch, and
             only while alive (the dead-player check above already returned SpectatorView),
             so no extra gating is needed here beyond what the rules already enforce. */}

@@ -103,7 +103,7 @@
             "nightActions": {
               ".read": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
               "$uid": {
-                ".read": "auth != null && auth.uid === $uid",
+                ".read": "auth != null && (auth.uid === $uid || (data.child('role').val() === 'Mafia' && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Mafia' && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true))",
                 ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night'",
                 ".validate": "newData.hasChildren(['role','action','targetUid']) && newData.child('role').isString() && (newData.child('action').val() === 'kill' || newData.child('action').val() === 'protect' || newData.child('action').val() === 'investigate') && newData.child('targetUid').isString()"
               }
