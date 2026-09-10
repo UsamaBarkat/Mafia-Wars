@@ -75,6 +75,16 @@ export const roomPaths = {
   /** /rooms/{code}/publicRoles — PUBLIC uid->role reveal, moderator-written ONLY once the
    *  game has ended (FR-15, D8). */
   publicRoles: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/publicRoles`,
+
+  // --- 2c chat & replay ---
+  /** /rooms/{code}/mafiaChat — night-only chat, keyed by push id. Readable/writable only
+   *  by currently-alive Mafia (spec-2c FR-1..FR-5, D4: membership via privateRoles, not
+   *  mafiaTeam — a solo Mafia has no mafiaTeam entry). Same message shape as `chat`. */
+  mafiaChat: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/mafiaChat`,
+  /** /rooms/{code}/dayChat — day-only chat, keyed by push id. Readable by every room member
+   *  (living, eliminated, and the moderator); postable only by alive players (spec-2c
+   *  FR-6..FR-10). Same message shape as `chat`. */
+  dayChat: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/dayChat`,
 };
 
 /** A valid room code is exactly 6 digits. */

@@ -8,25 +8,36 @@
 
 import { useState } from "react";
 import { useGame } from "@/components/GameProvider";
+import { useAuthUid } from "@/lib/useAuthUid";
 import {
   useGameState,
   useNightActions,
+  usePrivateRoles,
   useRoomPlayers,
   useRoomVotes,
 } from "@/lib/room/subscriptions";
 import { beginNight1 } from "@/lib/game/beginNight1";
 import { resolveNightOnClient } from "@/lib/game/resolveNightOnClient";
 import { resolveDayOnClient } from "@/lib/game/resolveDayOnClient";
+import { roomPaths } from "@/lib/room/paths";
 import { BackArrow } from "@/components/ui/BackArrow";
+import { Chat } from "@/components/online/Chat";
 import { GameOverScreen } from "@/components/screens/GameOverScreen";
+
+// Role NAMES with a night power (must match lib/roles.ts's defaults / NightScreen.tsx) —
+// Civilians and custom roles never submit a nightAction (D1), so they don't belong in the
+// night "X of Y acted" denominator.
+const NIGHT_ACTION_ROLES = new Set(["Mafia", "Doctor", "Detective"]);
 
 export function ModeratorStarted() {
   const { state, actions } = useGame();
+  const { uid } = useAuthUid();
   const code = state.roomCode;
   const players = useRoomPlayers(code);
   const game = useGameState(code);
   const nightActions = useNightActions(code, game.data?.round ?? null);
   const votes = useRoomVotes(code, game.data?.round ?? null);
+  const privateRoles = usePrivateRoles(code);
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
   const [endingDay, setEndingDay] = useState(false);
@@ -75,7 +86,12 @@ export function ModeratorStarted() {
   // Once Night 1 has begun, hand off to the phase-specific console.
   if (game.data) {
     if (game.data.phase === "night") {
-      const alivePlayerCount = playerList.filter((p) => p.alive === true).length;
+      // Denominator = alive players who actually HAVE a night action to submit — not
+      // every living player. Civilians/custom roles never submit one (D1), so counting
+      // them here would make the counter unable to ever reach its own total (the bug).
+      const actionableAliveCount = Object.entries(players.data ?? {}).filter(
+        ([uid, p]) => p.alive === true && NIGHT_ACTION_ROLES.has(privateRoles.data?.[uid]?.role ?? ""),
+      ).length;
       const submittedCount = Object.keys(nightActions.data ?? {}).length;
 
       return (
@@ -92,8 +108,8 @@ export function ModeratorStarted() {
                 <span className="font-bold tabular-nums text-emerald-400">
                   {submittedCount}
                 </span>{" "}
-                of <span className="font-bold tabular-nums">{alivePlayerCount}</span> living
-                players have acted
+                of <span className="font-bold tabular-nums">{actionableAliveCount}</span>{" "}
+                role-holders have acted
               </p>
               <p className="mt-1 text-xs text-neutral-500">
                 Not everyone needs to act — ending the night resolves whatever was
@@ -148,6 +164,18 @@ export function ModeratorStarted() {
             >
               {endingDay ? "Resolving…" : "End Day"}
             </button>
+
+            {/* Day chat, read-only (spec-2c FR-10 — the moderator does not act or vote,
+                and chat participation is treated the same way; see task 2's documented
+                accepted limit on raw database access vs. this UI path). */}
+            {code && (
+              <Chat
+                path={roomPaths.dayChat(code)}
+                uid={uid}
+                name="Moderator"
+                canPost={false}
+              />
+            )}
           </div>
         </main>
       );

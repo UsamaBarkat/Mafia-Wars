@@ -27,7 +27,10 @@
             "connected": { ".validate": "newData.isBoolean()" },
             "joinedAt": { ".validate": "newData.isNumber()" },
             "lastSeen": { ".validate": "newData.isNumber()" },
-            "viewed": { ".validate": "newData.isBoolean()" },
+            "viewed": {
+              ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+              ".validate": "newData.isBoolean()"
+            },
             "alive": {
               ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
               ".validate": "newData.isBoolean() && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid"
@@ -37,8 +40,27 @@
 
         "chat": {
           ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
           "$msgId": {
             ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+            ".validate": "newData.hasChildren(['uid','name','text','ts']) && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 24 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 300 && newData.child('ts').isNumber()"
+          }
+        },
+
+        "mafiaChat": {
+          ".read": "auth != null && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Mafia' && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "$msgId": {
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Mafia' && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night'",
+            ".validate": "newData.hasChildren(['uid','name','text','ts']) && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 24 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 300 && newData.child('ts').isNumber()"
+          }
+        },
+
+        "dayChat": {
+          ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "$msgId": {
+            ".write": "auth != null && !data.exists() && newData.child('uid').val() === auth.uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'day'",
             ".validate": "newData.hasChildren(['uid','name','text','ts']) && newData.child('uid').val() === auth.uid && newData.child('name').isString() && newData.child('name').val().length <= 24 && newData.child('text').isString() && newData.child('text').val().length >= 1 && newData.child('text').val().length <= 300 && newData.child('ts').isNumber()"
           }
         },
@@ -69,13 +91,14 @@
 
         "publicRoles": {
           ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
-          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid && root.child('rooms').child($code).child('game').child('phase').val() === 'ended'",
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid && (!newData.exists() || root.child('rooms').child($code).child('game').child('phase').val() === 'ended')",
           "$uid": {
             ".validate": "newData.isString()"
           }
         },
 
         "rounds": {
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
           "$n": {
             "nightActions": {
               ".read": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",

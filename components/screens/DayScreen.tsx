@@ -10,7 +10,9 @@ import { useGame } from "@/components/GameProvider";
 import { useAuthUid } from "@/lib/useAuthUid";
 import { useGameState, useRoomPlayers, useRoomVotes } from "@/lib/room/subscriptions";
 import { castVote } from "@/lib/game/castVote";
+import { roomPaths } from "@/lib/room/paths";
 import { VotePanel } from "@/components/online/VotePanel";
+import { Chat } from "@/components/online/Chat";
 import { SpectatorView } from "@/components/screens/SpectatorView";
 
 export function DayScreen() {
@@ -61,6 +63,17 @@ export function DayScreen() {
         canVote={iAmAlive}
         onVote={handleVote}
       />
+      {/* Day chat (spec-2c FR-6..FR-9) — every room member reads it; only the living can
+          post. Eliminated players get the same read-only treatment VotePanel already
+          gives them above, just for chat instead of votes. */}
+      {code && (
+        <Chat
+          path={roomPaths.dayChat(code)}
+          uid={uid}
+          name={state.onlineName || "Player"}
+          canPost={iAmAlive}
+        />
+      )}
     </div>
   );
 }

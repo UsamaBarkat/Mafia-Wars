@@ -1,23 +1,29 @@
 "use client";
 
-// Lobby chat panel (FR-9). Live message list via useRoomChat, append via sendChatMessage.
-// Everyone in the room (moderator + players) can read and post. Lobby-only (D7). The list
-// scrolls within a bounded height and auto-scrolls to the newest message on a phone.
+// Reusable chat panel (FR-9; spec-2c FR-3/8/9/10). Live message list via useRoomChat,
+// append via sendChatMessage — both channel-agnostic, so this one component serves lobby
+// chat, Mafia chat, and Day chat alike; the caller picks the channel via `path`. When
+// `canPost` is false the message list still renders live but there's no input/send
+// control — the same read-only-vs-interactive split VotePanel already uses for `canVote`
+// (an eliminated player reading Day chat, or anyone denied Mafia chat by the rules). The
+// list scrolls within a bounded height and auto-scrolls to the newest message on a phone.
 
 import { useEffect, useRef, useState } from "react";
 import { useRoomChat } from "@/lib/room/subscriptions";
 import { sendChatMessage, CHAT_MAX_LENGTH } from "@/lib/room/chat";
 
 export function Chat({
-  code,
+  path,
   uid,
   name,
+  canPost = true,
 }: {
-  code: string;
+  path: string;
   uid: string | null;
   name: string;
+  canPost?: boolean;
 }) {
-  const chat = useRoomChat(code);
+  const chat = useRoomChat(path);
   const messages = chat.data ?? [];
   const [text, setText] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
@@ -33,7 +39,7 @@ export function Chat({
     if (trimmed === "" || !uid) return;
     setText("");
     try {
-      await sendChatMessage(code, uid, name, trimmed);
+      await sendChatMessage(path, uid, name, trimmed);
     } catch (e) {
       console.error("chat send failed:", e);
     }
@@ -61,30 +67,32 @@ export function Chat({
         )}
       </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-        className="mt-3 flex gap-2"
-      >
-        <input
-          type="text"
-          value={text}
-          maxLength={CHAT_MAX_LENGTH}
-          onChange={(e) => setText(e.target.value)}
-          placeholder="Message"
-          aria-label="Chat message"
-          className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none focus:border-emerald-500"
-        />
-        <button
-          type="submit"
-          disabled={text.trim() === "" || !uid}
-          className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+      {canPost && (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            send();
+          }}
+          className="mt-3 flex gap-2"
         >
-          Send
-        </button>
-      </form>
+          <input
+            type="text"
+            value={text}
+            maxLength={CHAT_MAX_LENGTH}
+            onChange={(e) => setText(e.target.value)}
+            placeholder="Message"
+            aria-label="Chat message"
+            className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 text-white outline-none focus:border-emerald-500"
+          />
+          <button
+            type="submit"
+            disabled={text.trim() === "" || !uid}
+            className="shrink-0 rounded-xl bg-emerald-600 px-4 py-2 font-semibold text-white hover:bg-emerald-700 active:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Send
+          </button>
+        </form>
+      )}
     </div>
   );
 }

@@ -16,7 +16,9 @@ import {
   useRoomPlayers,
 } from "@/lib/room/subscriptions";
 import { submitNightAction } from "@/lib/game/submitNightAction";
+import { roomPaths } from "@/lib/room/paths";
 import { NightAction } from "@/components/online/NightAction";
+import { Chat } from "@/components/online/Chat";
 import { SpectatorView } from "@/components/screens/SpectatorView";
 import type { NightActionKind } from "@/lib/room/types";
 
@@ -70,9 +72,13 @@ export function NightScreen() {
   };
 
   if (role === MAFIA) {
-    const mateNames = (myMafiaTeam.data?.mates ?? [])
+    const mateUids = new Set(myMafiaTeam.data?.mates ?? []);
+    const mateNames = [...mateUids]
       .map((mateUid) => players.data?.[mateUid]?.name)
       .filter((name): name is string => Boolean(name));
+    // Kill targets exclude self (targetsExcludingSelf) AND fellow Mafia — a Mafia has no
+    // reason to eliminate their own team, mirroring the self-target exclusion's reasoning.
+    const killTargets = targetsExcludingSelf.filter((t) => !mateUids.has(t.uid));
     return (
       <div className="flex flex-col gap-3">
         {mateNames.length > 0 && (
@@ -82,10 +88,21 @@ export function NightScreen() {
         )}
         <NightAction
           heading="Choose who to eliminate"
-          targets={targetsExcludingSelf}
+          targets={killTargets}
           submittedUid={myAction.data?.targetUid ?? null}
           onSubmit={(targetUid) => handleSubmit("kill", targetUid)}
         />
+        {/* Mafia-only chat (spec-2c FR-1..FR-5) — only Mafia ever reach this branch, and
+            only while alive (the dead-player check above already returned SpectatorView),
+            so no extra gating is needed here beyond what the rules already enforce. */}
+        {code && (
+          <Chat
+            path={roomPaths.mafiaChat(code)}
+            uid={uid}
+            name={state.onlineName || "Player"}
+            canPost
+          />
+        )}
       </div>
     );
   }

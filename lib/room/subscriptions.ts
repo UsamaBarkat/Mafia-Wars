@@ -111,6 +111,18 @@ export function useMyRole(
   );
 }
 
+/** ALL dealt roles, keyed by uid — moderator-only per the rules (task 2's parent
+ *  `.read`). For computing who can act this phase (e.g. the moderator's night "X of Y
+ *  acted" counter); the UI must never render a role from this, only aggregate counts
+ *  (FR-16 — the moderator's screen never displays any player's role). */
+export function usePrivateRoles(
+  code: string | null,
+): Subscription<Record<string, PrivateRoleEntry>> {
+  return useDbValue<Record<string, PrivateRoleEntry>>(
+    code ? roomPaths.privateRoles(code) : null,
+  );
+}
+
 /** This client's OWN fellow-Mafia list (absent for non-Mafia, or a solo Mafia — task 4). */
 export function useMyMafiaTeam(
   code: string | null,
@@ -195,27 +207,29 @@ export function useRoomVotes(
 export type ChatMessageWithId = ChatMessage & { id: string };
 
 /**
- * The most recent chat messages (oldest→newest), capped at `max` via limitToLast so a
- * room only ever pulls a bounded window (FR-9). Each carries its push-key `id`.
+ * The most recent chat messages (oldest→newest) at `path` (e.g. `roomPaths.chat(code)`,
+ * `roomPaths.mafiaChat(code)`, or `roomPaths.dayChat(code)`), capped at `max` via
+ * limitToLast so a channel only ever pulls a bounded window (FR-9). Each carries its
+ * push-key `id`. Channel-agnostic (task 3, 2c) — the caller picks the channel via `path`.
  */
 export function useRoomChat(
-  code: string | null,
+  path: string | null,
   max = 50,
 ): Subscription<ChatMessageWithId[]> {
   const [state, setState] = useState<Subscription<ChatMessageWithId[]>>({
     data: null,
-    loading: code !== null,
+    loading: path !== null,
     error: null,
   });
 
   useEffect(() => {
-    if (!code) {
+    if (!path) {
       setState({ data: null, loading: false, error: null });
       return;
     }
 
     setState({ data: null, loading: true, error: null });
-    const chatQuery = query(ref(db, roomPaths.chat(code)), limitToLast(max));
+    const chatQuery = query(ref(db, path), limitToLast(max));
     const unsubscribe = onValue(
       chatQuery,
       (snap) => {
@@ -229,7 +243,7 @@ export function useRoomChat(
     );
 
     return () => unsubscribe();
-  }, [code, max]);
+  }, [path, max]);
 
   return state;
 }

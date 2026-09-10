@@ -27,6 +27,7 @@ import {
   ROOM_HEARTBEAT_MS,
 } from "@/lib/room/lifecycle";
 import { evaluateOnlineStart } from "@/lib/validation";
+import { roomPaths } from "@/lib/room/paths";
 import { Chat } from "@/components/online/Chat";
 import { RoleConfig } from "@/components/online/RoleConfig";
 import { OnlineRevealScreen } from "@/components/screens/OnlineRevealScreen";
@@ -267,7 +268,7 @@ export function WaitingRoomScreen() {
 
         {/* Lobby chat (everyone in the room) */}
         <Chat
-          code={code}
+          path={roomPaths.chat(code)}
           uid={uid}
           name={state.onlineName || (state.isModerator ? "Moderator" : "Player")}
         />
