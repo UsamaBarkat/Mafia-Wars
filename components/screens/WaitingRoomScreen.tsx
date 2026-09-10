@@ -68,6 +68,17 @@ export function WaitingRoomScreen() {
     return () => clearInterval(id);
   }, []);
 
+  // This component stays mounted for the room's whole lifetime — it never unmounts when
+  // the game starts, it just stops rendering this lobby branch (see the in_game check
+  // below). So `starting` (set true in handleStart, only ever reset in its catch branch)
+  // would otherwise stay stuck true forever once the game starts, then reappear on Play
+  // Again's return to "lobby" and leave the Start button stuck on "Starting…" with no
+  // handleStart call in flight to ever clear it. Reset it whenever we're back in the lobby.
+  const roomStatus = meta.data?.status ?? "lobby";
+  useEffect(() => {
+    if (roomStatus === "lobby") setStarting(false);
+  }, [roomStatus]);
+
   const playerList = Object.values(players.data ?? {}).sort(
     (a, b) => a.joinedAt - b.joinedAt,
   );
@@ -78,7 +89,7 @@ export function WaitingRoomScreen() {
 
   // Live START gate: valid setup AND connected players == Total Players Needed (FR-11).
   const startEval = evaluateOnlineStart(allRoles, connectedCount);
-  const inLobby = (meta.data?.status ?? "lobby") === "lobby";
+  const inLobby = roomStatus === "lobby";
 
   const handleStart = async () => {
     if (!code || !startEval.canStart || starting) return;
