@@ -18,15 +18,15 @@
 // emulator); the trust model here is already the moderator's device (D5), so a tiny
 // window between "ended" and "roles visible" is a cosmetic loading state, not a security gap.
 //
-// Every network call below is wrapped in withTimeout (see withTimeout.ts) so a stalled
-// read/write fails clearly instead of hanging forever.
+// Every network call below is wrapped in withTimeout (see ../withTimeout.ts) so a
+// stalled read/write fails clearly instead of hanging forever.
 
 import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveNight } from "./resolveNight";
 import { checkWin } from "./checkWin";
-import { withTimeout } from "./withTimeout";
+import { withTimeout } from "../withTimeout";
 import type { NightAction, PlayerEntry, PrivateRoleEntry } from "../room/types";
 
 export async function resolveNightOnClient(code: string, round: number): Promise<void> {

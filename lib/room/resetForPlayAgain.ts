@@ -20,10 +20,15 @@
 // rules the way writing a real value would (the same behavior already relied on when
 // nightOutcome's eliminatedUid is omitted for "no one died", task 6). So one atomic call
 // is enough — there's no need to sequence this into multiple writes.
+//
+// Wrapped in withTimeout (see ../withTimeout.ts), same fix as resolveNightOnClient.ts/
+// resolveDayOnClient.ts: without it, a stalled connection would leave the moderator's
+// "Play Again" confirm hanging forever with no error instead of failing clearly.
 
 import { ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "./paths";
+import { withTimeout } from "../withTimeout";
 
 /**
  * Reset room `code` back to the lobby, clearing the finished game's data for every uid in
@@ -47,5 +52,5 @@ export async function resetForPlayAgain(code: string, playerUids: string[]): Pro
     updates[`${roomPaths.player(code, uid)}/viewed`] = null;
   }
 
-  await update(ref(db), updates);
+  await withTimeout(update(ref(db), updates), "resetForPlayAgain");
 }

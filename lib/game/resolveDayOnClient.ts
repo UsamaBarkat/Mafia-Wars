@@ -18,15 +18,16 @@
 // current write, even within one multi-path update, so that gate can't be satisfied by a
 // phase write landing in the same atomic call (confirmed against the emulator).
 //
-// Every network call below is wrapped in withTimeout (see withTimeout.ts) so a stalled
-// read/write fails clearly instead of hanging forever — same fix as resolveNightOnClient.ts.
+// Every network call below is wrapped in withTimeout (see ../withTimeout.ts) so a
+// stalled read/write fails clearly instead of hanging forever — same fix as
+// resolveNightOnClient.ts.
 
 import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveDay } from "./resolveDay";
 import { checkWin } from "./checkWin";
-import { withTimeout } from "./withTimeout";
+import { withTimeout } from "../withTimeout";
 import type { PlayerEntry, PrivateRoleEntry, Vote } from "../room/types";
 
 export async function resolveDayOnClient(code: string, round: number): Promise<void> {
