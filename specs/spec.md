@@ -63,7 +63,7 @@ These resolve ambiguities surfaced during spec review. Where a decision tightene
 - [x] START with that setup produces exactly 2 Mafia, 1 Detective, 1 Doctor, and 6 Civilian across the 10 reveals.
 - [x] Each reveal starts hidden, reveals only on tap, and advances only via "Next."
 - [x] A revealed role is no longer visible after "Next" is tapped.
-- [ ] A revealed card shows "Your Role:", the role name (e.g. "Mafia"), and that role's icon + description card (custom roles show the generic line).
+- [x] A revealed card shows "Your Role:", the role name (e.g. "Mafia"), and that role's icon + description card (custom roles show the generic line).
 - [x] After the last player, the "All Done" screen appears.
 - [x] A custom role can be added, given a count, and is included in the assignment.
 - [x] START is not allowed with 0 Mafia or fewer than 3 total players.
