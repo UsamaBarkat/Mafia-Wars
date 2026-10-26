@@ -12,33 +12,10 @@ import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/components/GameProvider";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-
-// Display-only icon + description per standard role name. Custom roles can't reuse
-// a standard name (duplicate check), so anything not listed gets the custom default.
-const ROLE_INFO: Record<string, { icon: string; description: string }> = {
-  Mafia: {
-    icon: "🔫",
-    description:
-      "You are part of the Mafia. Work secretly with other Mafia members to eliminate citizens.",
-  },
-  Detective: {
-    icon: "🔍",
-    description: "You can investigate one player each night to discover their true identity.",
-  },
-  Doctor: {
-    icon: "💊",
-    description: "You can protect one player each night from being eliminated.",
-  },
-  Civilian: {
-    icon: "👤",
-    description: "You are a citizen. Use your voice and vote during the day to find the Mafia.",
-  },
-};
-
-const CUSTOM_ROLE_INFO = {
-  icon: "🎭",
-  description: "A custom role — ask your host what it does.",
-};
+// Display-only icon + description per standard role name (shared with the online reveal).
+// Custom roles can't reuse a standard name (duplicate check), so anything not listed
+// gets the custom default.
+import { CUSTOM_ROLE_INFO, ROLE_INFO } from "@/lib/roleInfo";
 
 export function RevealScreen() {
   const { state, actions } = useGame();

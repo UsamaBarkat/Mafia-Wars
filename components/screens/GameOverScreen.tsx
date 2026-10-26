@@ -3,7 +3,8 @@
 // Game-over screen (spec-2b FR-14/15, D8/D9). Shown to EVERYONE — players and the
 // moderator alike — once `game.phase === 'ended'`: the winning team and the full role
 // reveal (`publicRoles`, moderator-written only at this point — the ONLY point any role
-// becomes visible to anyone but its own owner).
+// becomes visible to anyone but its own owner). [2d] A Jester voted out by day wins
+// alone (spec-2d FR-3/FR-28); lover pairings are never revealed here (spec-2d D12).
 //
 // Play Again (spec-2c FR-11/11a, D8/D10): moderator-only, confirm-gated, reuses the
 // existing ConfirmDialog. Confirming calls resetForPlayAgain (task 4), which flips
@@ -63,7 +64,9 @@ export function GameOverScreen() {
               ? "Town wins!"
               : winner === "mafia"
                 ? "Mafia wins!"
-                : "Loading…"}
+                : winner === "jester"
+                  ? "The Jester wins!"
+                  : "Loading…"}
           </h1>
         </div>
 
