@@ -85,6 +85,14 @@ export const roomPaths = {
    *  (living, eliminated, and the moderator); postable only by alive players (spec-2c
    *  FR-6..FR-10). Same message shape as `chat`. */
   dayChat: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/dayChat`,
+
+  // --- 2d new roles ---
+  /** /rooms/{code}/lovers — per-lover private partner lists. No one may read the whole
+   *  node, not even the moderator (spec-2d D6); Cupid writes it on Night 1. */
+  lovers: (code: RoomCode): string => `${ROOMS_ROOT}/${code}/lovers`,
+  /** /rooms/{code}/lovers/{uid} — one lover's partners (partnerUid -> true); readable only by that uid. */
+  loversEntry: (code: RoomCode, uid: string): string =>
+    `${ROOMS_ROOT}/${code}/lovers/${uid}`,
 };
 
 /** A valid room code is exactly 6 digits. */

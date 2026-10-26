@@ -78,8 +78,9 @@ export type ChatMessage = {
 export const GAME_PHASES = ["night", "day", "ended"] as const;
 export type GamePhase = (typeof GAME_PHASES)[number];
 
-/** Winning team when the game ends (spec-2b FR-14/15, D9). */
-export type WinnerTeam = "town" | "mafia";
+/** Winning team when the game ends (spec-2b FR-14/15, D9). [2d] "jester" — the Jester
+ *  was voted out by day, which overrides every other win (spec-2d FR-3/4). */
+export type WinnerTeam = "town" | "mafia" | "jester";
 
 /** The live game state at /rooms/{code}/game — moderator-written (D5/D10). */
 export type Game = {
@@ -97,8 +98,9 @@ export type MafiaTeamEntry = {
   mates: string[];
 };
 
-/** Which night power an action exercises (standard four roles only — D1). */
-export const NIGHT_ACTION_KINDS = ["kill", "protect", "investigate"] as const;
+/** Which night power an action exercises. [2d] "link" — Cupid's one-time Night-1 pick of
+ *  two lovers (spec-2d FR-7). */
+export const NIGHT_ACTION_KINDS = ["kill", "protect", "investigate", "link"] as const;
 export type NightActionKind = (typeof NIGHT_ACTION_KINDS)[number];
 
 /** A role-holder's SECRET night choice at /rooms/{code}/rounds/{n}/nightActions/{uid}.
@@ -109,6 +111,9 @@ export type NightAction = {
   action: NightActionKind;
   /** The chosen living player's uid. */
   targetUid: string;
+  /** [2d] Only for "link": the second lover's uid (the first is targetUid). */
+  secondTargetUid?: string;
+  /** Server time (ms) of the latest save — a changed pick re-saves it (spec-2d D10). */
   submittedAt: number;
 };
 
@@ -124,8 +129,13 @@ export type NightResult = {
 /** The PUBLIC night outcome at /rooms/{code}/rounds/{n}/nightOutcome — moderator-written.
  *  Names WHO died, never a role (spec-2b FR-9, D8). */
 export type NightOutcome = {
-  /** uid of the eliminated player, or null if no one died (Doctor cancel / no kill). */
-  eliminatedUid: string | null;
+  /** uid of the eliminated player, or null if no one died (Doctor cancel / no kill).
+   *  [2d] Only written when exactly ONE player died — a fallback for older clients; read
+   *  `eliminatedUids` first (spec-2d FR-24, D11). */
+  eliminatedUid?: string | null;
+  /** [2d] Everyone who died tonight (Mafia kill + Granny's Mafia + linked lovers), as a
+   *  uid -> true map. Absent when no one died. Never in resolution order (FR-24). */
+  eliminatedUids?: Record<string, true>;
   resolvedAt: number;
 };
 
@@ -143,9 +153,16 @@ export type Vote = {
 /** The PUBLIC day outcome at /rooms/{code}/rounds/{n}/dayOutcome — moderator-written.
  *  Names WHO was eliminated, or null on a tie / Skip win (spec-2b FR-12, D7/D8). */
 export type DayOutcome = {
+  /** The player the vote eliminated (public via the tally anyway). */
   eliminatedUid: string | null;
+  /** [2d] Everyone who died today — the voted-out player plus any linked lovers. */
+  eliminatedUids?: Record<string, true>;
   resolvedAt: number;
 };
+
+/** [2d] One lover's PRIVATE partner list at /rooms/{code}/lovers/{uid} — partnerUid ->
+ *  true. Readable only by that uid; written by Cupid on Night 1 (spec-2d FR-7/10, D5). */
+export type LoversEntry = Record<string, true>;
 
 /** One round's data at /rooms/{code}/rounds/{n}. Sub-nodes appear as the round plays out. */
 export type RoundData = {
@@ -179,4 +196,6 @@ export type Room = {
   rounds?: Record<string, RoundData>;
   /** Set only once the game has ended (FR-15). */
   publicRoles?: PublicRoles;
+  /** [2d] Per-lover private partner lists. */
+  lovers?: Record<string, LoversEntry>;
 };
