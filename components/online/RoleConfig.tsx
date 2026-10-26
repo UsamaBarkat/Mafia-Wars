@@ -6,10 +6,11 @@
 // Shows the total role count vs the number of joined players.
 
 import { useEffect, useRef, useState } from "react";
-import { CUSTOM_NAME_MAX, type Role } from "@/lib/roles";
+import { CUSTOM_NAME_MAX, isBuiltInRoleName, type Role } from "@/lib/roles";
 import { RoleStepper } from "@/components/ui/RoleStepper";
 import {
   addCustomRole,
+  addMissingBuiltInRoles,
   removeRole,
   seedDefaultRoles,
   setRoleCount,
@@ -31,13 +32,19 @@ export function RoleConfig({
   const [name, setName] = useState("");
   const seededRef = useRef(false);
 
-  // Moderator seeds the Phase 1 default roles once, the first time a fresh room has no
-  // config yet (standard roles always remain in the map afterward, so this never re-fires).
+  // Moderator seeds the built-in roles once, the first time a fresh room has no config yet
+  // (standard roles always remain in the map afterward, so this never re-fires). [2d] A
+  // room seeded before Jester/Cupid/Granny existed gets just those rows added, at 0.
+  const roleIdsKey = roles.map((r) => r.id).join(",");
   useEffect(() => {
-    if (!isModerator || !rolesLoaded || roles.length > 0 || seededRef.current) return;
+    if (!isModerator || !rolesLoaded || seededRef.current) return;
     seededRef.current = true;
-    seedDefaultRoles(code).catch((e) => console.error("seed roles failed:", e));
-  }, [isModerator, rolesLoaded, roles.length, code]);
+    const write =
+      roleIdsKey === ""
+        ? seedDefaultRoles(code)
+        : addMissingBuiltInRoles(code, roleIdsKey.split(","));
+    write.catch((e) => console.error("seed roles failed:", e));
+  }, [isModerator, rolesLoaded, roleIdsKey, code]);
 
   const totalRoles = roles.reduce((sum, r) => sum + r.count, 0);
 
@@ -55,7 +62,9 @@ export function RoleConfig({
       (r) => r.name.trim().toLowerCase() === trimmed.toLowerCase(),
     );
     setName("");
-    if (dup) return; // block case-insensitive duplicates (Phase 1 rule)
+    // Block case-insensitive duplicates (Phase 1 rule) and [2d] any built-in role name,
+    // even one whose row is missing — the resolver matches roles by name.
+    if (dup || isBuiltInRoleName(trimmed)) return;
     addCustomRole(code, trimmed).catch((e) => console.error("add role failed:", e));
   };
 

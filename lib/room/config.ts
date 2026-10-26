@@ -5,17 +5,31 @@
 import { ref, remove, set, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "./paths";
-import { createCustomRole, createDefaultRoles, type Role } from "@/lib/roles";
+import { createCustomRole, createOnlineDefaultRoles, type Role } from "@/lib/roles";
 
 function roleRef(code: string, roleId: string) {
   return ref(db, `${roomPaths.configRoles(code)}/${roleId}`);
 }
 
-/** Seed the four standard roles at Phase 1 defaults (1/1/1/7) as a map keyed by role id. */
+/** Seed the online built-in roles as a map keyed by role id: the four standard roles at
+ *  Phase 1 defaults (1/1/1/7) plus [2d] Jester, Cupid and Granny at 0. */
 export async function seedDefaultRoles(code: string): Promise<void> {
   const map: Record<string, Role> = {};
-  for (const role of createDefaultRoles()) map[role.id] = role;
+  for (const role of createOnlineDefaultRoles()) map[role.id] = role;
   await set(ref(db, roomPaths.configRoles(code)), map);
+}
+
+/** [2d] Add any built-in role row a room is missing (count 0) — rooms seeded before 2d
+ *  keep their config through Play Again, so they'd otherwise never get the new roles. */
+export async function addMissingBuiltInRoles(
+  code: string,
+  existingIds: readonly string[],
+): Promise<void> {
+  const missing = createOnlineDefaultRoles().filter((r) => !existingIds.includes(r.id));
+  if (missing.length === 0) return;
+  const updates: Record<string, Role> = {};
+  for (const role of missing) updates[role.id] = { ...role, count: 0 };
+  await update(ref(db, roomPaths.configRoles(code)), updates);
 }
 
 /** Set a role's count (caller clamps to [0, cap]). */

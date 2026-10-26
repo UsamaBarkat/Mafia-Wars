@@ -31,9 +31,30 @@ const STANDARD_DEFS: ReadonlyArray<{ id: string; name: string; count: number; ca
 /** Stable id for the Mafia role, used by validation (Mafia >= 1). */
 export const MAFIA_ROLE_ID = "mafia";
 
+/** [2d] Online-only built-in roles (spec-2d FR-26): start at 0 so existing setups are
+ *  unchanged until the moderator opts in. Phase 1 offline never uses these. */
+const ONLINE_EXTRA_DEFS: ReadonlyArray<{ id: string; name: string; count: number; cap: number }> = [
+  { id: "jester", name: "Jester", count: 0, cap: STANDARD_ROLE_CAP },
+  { id: "cupid", name: "Cupid", count: 0, cap: STANDARD_ROLE_CAP },
+  { id: "granny", name: "Granny", count: 0, cap: STANDARD_ROLE_CAP },
+];
+
 /** Build a fresh list of the four standard roles at their default counts (FR-2, FR-3). */
 export function createDefaultRoles(): Role[] {
   return STANDARD_DEFS.map((def) => ({ ...def, isStandard: true }));
+}
+
+/** [2d] The online room's built-in roles: the four standard ones plus Jester, Cupid and
+ *  Granny — all non-removable (isStandard), so a custom role can never shadow them. */
+export function createOnlineDefaultRoles(): Role[] {
+  return [...STANDARD_DEFS, ...ONLINE_EXTRA_DEFS].map((def) => ({ ...def, isStandard: true }));
+}
+
+/** [2d] True if `name` matches any built-in role name (case-insensitive). The resolver
+ *  identifies roles by NAME, so a custom "jester" would otherwise act as the real one. */
+export function isBuiltInRoleName(name: string): boolean {
+  const lower = name.trim().toLowerCase();
+  return [...STANDARD_DEFS, ...ONLINE_EXTRA_DEFS].some((def) => def.name.toLowerCase() === lower);
 }
 
 /** Build a custom role from a (already validated) name: starts at count 1, cap 20 (FR-6). */
