@@ -79,7 +79,7 @@
           ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
           "phase": { ".validate": "newData.isString() && (newData.val() === 'night' || newData.val() === 'day' || newData.val() === 'ended')" },
           "round": { ".validate": "newData.isNumber()" },
-          "winner": { ".validate": "newData.val() === 'town' || newData.val() === 'mafia'" }
+          "winner": { ".validate": "newData.val() === 'town' || newData.val() === 'mafia' || newData.val() === 'jester'" }
         },
 
         "mafiaTeam": {
@@ -104,8 +104,8 @@
               ".read": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
               "$uid": {
                 ".read": "auth != null && (auth.uid === $uid || (data.child('role').val() === 'Mafia' && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Mafia' && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true))",
-                ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night'",
-                ".validate": "newData.hasChildren(['role','action','targetUid']) && newData.child('role').isString() && (newData.child('action').val() === 'kill' || newData.child('action').val() === 'protect' || newData.child('action').val() === 'investigate') && newData.child('targetUid').isString()"
+                ".write": "auth != null && auth.uid === $uid && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night' && (!data.exists() || data.child('action').val() !== 'link')",
+                ".validate": "newData.hasChildren(['role','action','targetUid']) && newData.child('role').isString() && newData.child('targetUid').isString() && ((newData.child('action').val() === 'kill' || newData.child('action').val() === 'protect' || newData.child('action').val() === 'investigate') || (newData.child('action').val() === 'link' && $n === '1' && root.child('rooms').child($code).child('game').child('round').val() === 1 && newData.child('role').val() === 'Cupid' && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Cupid' && newData.child('secondTargetUid').isString() && newData.child('secondTargetUid').val() !== newData.child('targetUid').val() && newData.child('targetUid').val() !== auth.uid && newData.child('secondTargetUid').val() !== auth.uid && root.child('rooms').child($code).child('players').child(newData.child('targetUid').val()).child('alive').val() === true && root.child('rooms').child($code).child('players').child(newData.child('secondTargetUid').val()).child('alive').val() === true))"
               }
             },
 
@@ -121,7 +121,10 @@
               ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
               ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
               ".validate": "newData.hasChildren(['resolvedAt']) && newData.child('resolvedAt').isNumber()",
-              "eliminatedUid": { ".validate": "newData.isString()" }
+              "eliminatedUid": { ".validate": "newData.isString()" },
+              "eliminatedUids": {
+                "$deadUid": { ".validate": "newData.val() === true" }
+              }
             },
 
             "votes": {
@@ -136,7 +139,21 @@
               ".read": "auth != null && (root.child('rooms').child($code).child('players').child(auth.uid).exists() || root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid)",
               ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
               ".validate": "newData.hasChildren(['resolvedAt']) && newData.child('resolvedAt').isNumber()",
-              "eliminatedUid": { ".validate": "newData.isString()" }
+              "eliminatedUid": { ".validate": "newData.isString()" },
+              "eliminatedUids": {
+                "$deadUid": { ".validate": "newData.val() === true" }
+              }
+            }
+          }
+        },
+
+        "lovers": {
+          ".write": "auth != null && root.child('rooms').child($code).child('meta').child('moderatorId').val() === auth.uid",
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            "$partner": {
+              ".write": "auth != null && newData.val() === true && root.child('rooms').child($code).child('privateRoles').child(auth.uid).child('role').val() === 'Cupid' && root.child('rooms').child($code).child('players').child(auth.uid).child('alive').val() === true && root.child('rooms').child($code).child('game').child('phase').val() === 'night' && root.child('rooms').child($code).child('game').child('round').val() === 1",
+              ".validate": "newData.val() === true && $uid !== $partner && $uid !== auth.uid && $partner !== auth.uid && root.child('rooms').child($code).child('players').child($uid).child('alive').val() === true && root.child('rooms').child($code).child('players').child($partner).child('alive').val() === true && newData.parent().parent().child($partner).child($uid).val() === true && newData.parent().parent().parent().child('rounds').child('1').child('nightActions').child(auth.uid).child('action').val() === 'link' && ((newData.parent().parent().parent().child('rounds').child('1').child('nightActions').child(auth.uid).child('targetUid').val() === $uid && newData.parent().parent().parent().child('rounds').child('1').child('nightActions').child(auth.uid).child('secondTargetUid').val() === $partner) || (newData.parent().parent().parent().child('rounds').child('1').child('nightActions').child(auth.uid).child('targetUid').val() === $partner && newData.parent().parent().parent().child('rounds').child('1').child('nightActions').child(auth.uid).child('secondTargetUid').val() === $uid))"
             }
           }
         }
