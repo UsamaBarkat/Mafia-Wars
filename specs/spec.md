@@ -8,20 +8,20 @@ A single-device web app that lets a host configure a Mafia game's roles, randoml
 
 - A host opens the app, taps ROLES, sets 2 Mafia / 1 Detective / 1 Doctor / 6 Civilian (Total Players: 10), goes back, and taps START.
 - The app shuffles the 10 roles and shows the first reveal: a hidden screen reading "Click to see the role."
-- A player taps, sees just the role name — Mafia — then taps Next. The phone is passed, and the next player sees a fresh hidden "Click to see the role" screen.
+- A player taps, sees "Your Role: Mafia" with a short description of the role, then taps Next. The phone is passed, and the next player sees a fresh hidden "Click to see the role" screen.
 - After the 10th player taps Next, an All Done screen appears and in-person play begins.
 - A host taps "Add Custom Role," types "Jester," gives it a count, and it joins the random assignment exactly like a standard role.
 
 ## Functional Requirements
 
 - FR-1 — Home screen shows the title, a START button, a ROLES button, and the host's display name. The display name is editable on Home, kept in memory only, and resets to a default (e.g. "Host") on refresh.
-- FR-2 — ROLES screen lists the standard roles (Mafia, Detective, Doctor, Civilian), each with a minus / count / plus stepper.
+- FR-2 — ROLES screen lists the standard roles (Mafia, Detective, Doctor, Civilian) under a "Standard Roles" header, each with a minus / count / plus stepper and a muted "Max: N" line showing its cap. Custom roles appear under a "Custom Roles" header (shown only when one exists), with "+ Add Custom Role" as a full-width row below.
 - FR-3 — Default counts: Mafia 1, Detective 1, Doctor 1, Civilian 7.
 - FR-4 — Caps: Mafia, Detective, and Doctor max out at 20 each; Civilian maxes at 100. No count goes below 0.
 - FR-5 — "Total Players" always equals the sum of all role counts and updates live as counts change.
 - FR-6 — "Add Custom Role" lets the host type a name (max 24 characters); the new role appears at count 1 with its own stepper (same behaviour as a standard role, with its count capped at 20) and can be removed. Standard roles cannot be removed — they can only be stepped down to 0.
 - FR-7 — START randomly assigns exactly one role instance per player slot via a cryptographically secure shuffle (the result is unpredictable and can't be guessed or reproduced), so the counts are honoured exactly (2 Mafia means exactly 2 players are Mafia).
-- FR-8 — The reveal runs one player at a time. The hidden screen shows the progress ("Player 3 of 10"), a pass prompt ("Pass the phone to Player 3"), and "Click to see the role." Tapping anywhere on the card reveals that player's role as just the role name (e.g. "Mafia"), with no extra wording like "You are…", and it stays visible until "Next" is tapped. Once revealed, the card is inert — tapping it again does nothing; only "Next" advances. A "Next" button (bottom-right) then advances to the next player's hidden screen. The button reads "Next" for every player, including the last.
+- FR-8 — The reveal runs one player at a time. The hidden screen shows the progress ("Player 3 of 10"), a pass prompt ("Pass the phone to Player 3"), and "Click to see the role." Tapping anywhere on the card reveals that player's role: a small muted "Your Role:" label above the large role name (e.g. "Mafia"), then a card with a role icon and a one-sentence description (🔫 Mafia, 🔍 Detective, 💊 Doctor, 👤 Civilian; custom roles show 🎭 and "A custom role — ask your host what it does."). It stays visible until "Next" is tapped. Once revealed, the card is inert — tapping it again does nothing; only "Next" advances. A "Next" button (bottom-right) then advances to the next player's hidden screen. The button reads "Next" for every player, including the last.
 - FR-9 — A revealed role is hidden again the moment "Next" is tapped. The reveal is forward-only — there is no going back to an already-shown role.
 - FR-10 — After the last player taps "Next," an "All Done" screen appears: a simple confirmation plus a button to return Home / start a fresh setup. It shows no role information (no tally, no per-player recap) to preserve secrecy.
 - FR-11 — A back arrow (left-pointing) sits in the top-left corner of every screen except Home, returning to the previous screen. During the reveal, tapping it first shows a confirm dialog ("End reveal and return Home? Roles won't be shown again"); confirming returns to Home and ends the reveal. It never steps back to an already-shown role, so roles stay secret.
@@ -63,7 +63,7 @@ These resolve ambiguities surfaced during spec review. Where a decision tightene
 - [x] START with that setup produces exactly 2 Mafia, 1 Detective, 1 Doctor, and 6 Civilian across the 10 reveals.
 - [x] Each reveal starts hidden, reveals only on tap, and advances only via "Next."
 - [x] A revealed role is no longer visible after "Next" is tapped.
-- [x] A revealed card shows only the role name (e.g. "Mafia") — no other words.
+- [ ] A revealed card shows "Your Role:", the role name (e.g. "Mafia"), and that role's icon + description card (custom roles show the generic line).
 - [x] After the last player, the "All Done" screen appears.
 - [x] A custom role can be added, given a count, and is included in the assignment.
 - [x] START is not allowed with 0 Mafia or fewer than 3 total players.

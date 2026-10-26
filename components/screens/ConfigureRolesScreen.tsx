@@ -2,24 +2,50 @@
 
 // Configure Roles screen (FR-2..FR-6). Uses the RoleStepper + BackArrow primitives
 // and the game actions. Standard roles have no remove control; custom roles do.
-// Add Custom Role is an inline field (per plan). START gating/button is task 10.
+// Roles are grouped under "Standard Roles" / "Custom Roles" headers, each row showing
+// its cap. The "+ Add Custom Role" row expands into the inline name field (FR-6).
 
 import { useState } from "react";
 import { useGame } from "@/components/GameProvider";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { RoleStepper } from "@/components/ui/RoleStepper";
-import { CUSTOM_NAME_MAX } from "@/lib/roles";
+import { CUSTOM_NAME_MAX, type Role } from "@/lib/roles";
 
 export function ConfigureRolesScreen() {
   const { state, totalPlayers, canStart, disabledReason, actions } = useGame();
   const [name, setName] = useState("");
+  const [adding, setAdding] = useState(false);
 
   // The reducer already trims, blocks empty/duplicates, and caps the name; the UI
   // just disables Add for an all-whitespace field and clears after an attempt.
   const handleAdd = () => {
     actions.addCustomRole(name);
     setName("");
+    setAdding(false);
   };
+
+  const cancelAdd = () => {
+    setName("");
+    setAdding(false);
+  };
+
+  const standardRoles = state.roles.filter((role) => role.isStandard);
+  const customRoles = state.roles.filter((role) => !role.isStandard);
+
+  const renderRow = (role: Role) => (
+    <RoleStepper
+      key={role.id}
+      name={role.name}
+      count={role.count}
+      cap={role.cap}
+      subtitle={`Max: ${role.cap}`}
+      onDecrement={() => actions.decRole(role.id)}
+      onIncrement={() => actions.incRole(role.id)}
+      onRemove={
+        role.isStandard ? undefined : () => actions.removeCustomRole(role.id)
+      }
+    />
+  );
 
   return (
     <main className="relative flex min-h-[100dvh] items-center justify-center bg-neutral-950 px-6 py-20 text-white">
@@ -35,51 +61,71 @@ export function ConfigureRolesScreen() {
           <span className="font-bold tabular-nums text-white">{totalPlayers}</span>
         </p>
 
-        {/* Content card holds the role rows + add field, in the dark theme. */}
+        {/* Content card holds the grouped role rows + add entry, in the dark theme. */}
         <div className="mt-6 rounded-2xl border border-neutral-800 bg-neutral-900 p-4 shadow-xl">
-          <div className="divide-y divide-neutral-800">
-            {state.roles.map((role) => (
-              <RoleStepper
-                key={role.id}
-                name={role.name}
-                count={role.count}
-                cap={role.cap}
-                onDecrement={() => actions.decRole(role.id)}
-                onIncrement={() => actions.incRole(role.id)}
-                onRemove={
-                  role.isStandard
-                    ? undefined
-                    : () => actions.removeCustomRole(role.id)
-                }
-              />
-            ))}
+          <h2 className="text-left text-base font-bold text-white">Standard Roles</h2>
+          <div className="mt-1 divide-y divide-neutral-800">
+            {standardRoles.map(renderRow)}
           </div>
 
-          {/* Add Custom Role — inline field (FR-6). */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleAdd();
-            }}
-            className="mt-4 flex items-center gap-2 border-t border-neutral-800 pt-4"
-          >
-            <input
-              type="text"
-              value={name}
-              maxLength={CUSTOM_NAME_MAX}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Add custom role"
-              aria-label="Custom role name"
-              className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-white outline-none placeholder:text-neutral-500 focus:border-red-600"
-            />
-            <button
-              type="submit"
-              disabled={name.trim() === ""}
-              className="shrink-0 rounded-xl bg-red-700 px-5 py-3 text-base font-semibold text-white hover:bg-red-800 active:bg-red-900 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Add
-            </button>
-          </form>
+          {customRoles.length > 0 && (
+            <>
+              <h2 className="mt-4 border-t border-neutral-800 pt-4 text-left text-base font-bold text-white">
+                Custom Roles
+              </h2>
+              <div className="mt-1 divide-y divide-neutral-800">
+                {customRoles.map(renderRow)}
+              </div>
+            </>
+          )}
+
+          {/* Add Custom Role (FR-6): a full-width row that opens the inline field. */}
+          <div className="mt-4 border-t border-neutral-800 pt-4">
+            {!adding ? (
+              <button
+                type="button"
+                onClick={() => setAdding(true)}
+                className="w-full rounded-xl border border-dashed border-neutral-700 px-4 py-3 text-base font-semibold text-red-500 hover:bg-neutral-800 active:bg-neutral-700"
+              >
+                + Add Custom Role
+              </button>
+            ) : (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleAdd();
+                }}
+                className="flex flex-col gap-2"
+              >
+                <input
+                  type="text"
+                  value={name}
+                  maxLength={CUSTOM_NAME_MAX}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Custom role name"
+                  aria-label="Custom role name"
+                  autoFocus
+                  className="w-full rounded-xl border border-neutral-700 bg-neutral-950 px-4 py-3 text-base text-white outline-none placeholder:text-neutral-500 focus:border-red-600"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={cancelAdd}
+                    className="flex-1 rounded-xl border border-neutral-700 px-5 py-3 text-base font-semibold text-neutral-200 hover:bg-neutral-800 active:bg-neutral-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={name.trim() === ""}
+                    className="flex-1 rounded-xl bg-red-700 px-5 py-3 text-base font-semibold text-white hover:bg-red-800 active:bg-red-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
         </div>
 
         {/* START — gated by the derived canStart / disabledReason (task 10). */}

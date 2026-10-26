@@ -12,6 +12,8 @@ type RoleStepperProps = {
   onIncrement: () => void;
   /** When provided, shows a remove control (custom roles only). */
   onRemove?: () => void;
+  /** Optional muted line under the name (e.g. "Max: 20"). Omitted → no subtitle. */
+  subtitle?: string;
 };
 
 const stepButton =
@@ -24,6 +26,7 @@ export function RoleStepper({
   onDecrement,
   onIncrement,
   onRemove,
+  subtitle,
 }: RoleStepperProps) {
   const atMin = count <= 0;
   const atMax = count >= cap;
@@ -31,7 +34,10 @@ export function RoleStepper({
   return (
     <div className="flex items-center justify-between gap-3 py-2">
       <div className="flex min-w-0 items-center gap-2">
-        <span className="truncate text-lg text-white">{name}</span>
+        <div className="flex min-w-0 flex-col">
+          <span className="truncate text-lg text-white">{name}</span>
+          {subtitle && <span className="text-xs text-neutral-500">{subtitle}</span>}
+        </div>
         {onRemove && (
           <button
             type="button"

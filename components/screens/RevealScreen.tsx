@@ -3,7 +3,8 @@
 // Reveal screen (FR-8, FR-9, FR-11). Forward-only, one player at a time, driven by
 // the provider's assignment / revealIndex / revealShown.
 //   hidden  → progress + "pass the phone" + "Click to see the role"; tap anywhere reveals
-//   shown   → ONLY the bare role name + a bottom-right Next (advances and re-hides)
+//   shown   → "Your Role:" label, the role name, an icon + one-line description card,
+//             and a bottom-right Next (advances and re-hides)
 // The top-left back arrow opens a confirm before leaving (FR-11); confirm ends the
 // reveal and goes Home, cancel stays put. Browser/hardware Back guard is task 14.
 
@@ -11,6 +12,33 @@ import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/components/GameProvider";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+
+// Display-only icon + description per standard role name. Custom roles can't reuse
+// a standard name (duplicate check), so anything not listed gets the custom default.
+const ROLE_INFO: Record<string, { icon: string; description: string }> = {
+  Mafia: {
+    icon: "🔫",
+    description:
+      "You are part of the Mafia. Work secretly with other Mafia members to eliminate citizens.",
+  },
+  Detective: {
+    icon: "🔍",
+    description: "You can investigate one player each night to discover their true identity.",
+  },
+  Doctor: {
+    icon: "💊",
+    description: "You can protect one player each night from being eliminated.",
+  },
+  Civilian: {
+    icon: "👤",
+    description: "You are a citizen. Use your voice and vote during the day to find the Mafia.",
+  },
+};
+
+const CUSTOM_ROLE_INFO = {
+  icon: "🎭",
+  description: "A custom role — ask your host what it does.",
+};
 
 export function RevealScreen() {
   const { state, actions } = useGame();
@@ -61,6 +89,7 @@ export function RevealScreen() {
   const total = assignment.length;
   const playerNumber = revealIndex + 1;
   const role = assignment[revealIndex];
+  const info = ROLE_INFO[role] ?? CUSTOM_ROLE_INFO;
 
   return (
     <main className="relative flex min-h-[100dvh] flex-col bg-neutral-950 text-white">
@@ -87,13 +116,25 @@ export function RevealScreen() {
           </div>
         </button>
       ) : (
-        // Revealed: only the role name. The card itself is inert; Next advances.
+        // Revealed: label, role name, and an icon + description card. The card
+        // itself is inert; Next advances.
         <>
-          {/* pb-28 reserves space so a long/wrapped name never sits under Next. */}
-          <div className="flex flex-1 items-center justify-center px-6 pb-28 text-center">
-            <span className="max-w-full break-words text-5xl font-extrabold tracking-tight sm:text-6xl">
-              {role}
-            </span>
+          {/* pb-28 reserves space so the content never sits under Next. */}
+          <div className="flex flex-1 items-center justify-center px-6 pb-28 pt-20 text-center">
+            <div className="mx-auto flex w-full max-w-md flex-col items-center">
+              <p className="text-base text-neutral-400">Your Role:</p>
+              <span className="mt-2 max-w-full break-words text-5xl font-extrabold tracking-tight sm:text-6xl">
+                {role}
+              </span>
+              <div className="mt-8 flex w-full flex-col items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-900 p-6 shadow-xl">
+                <span className="text-5xl" aria-hidden="true">
+                  {info.icon}
+                </span>
+                <p className="text-base leading-relaxed text-neutral-300">
+                  {info.description}
+                </p>
+              </div>
+            </div>
           </div>
           <button
             type="button"
