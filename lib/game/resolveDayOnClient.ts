@@ -7,10 +7,14 @@
 //
 // Reads round N's votes plus the true roles + current roster (for the win check), runs
 // the pure resolveDay (task 3), then checks the pure checkWin against the roster AFTER
-// this elimination. One atomic write: the eliminated player (if any) alive:false, the
-// PUBLIC dayOutcome (never a role, D8), and either advances to the NEXT night —
+// every death. One atomic write: each eliminated player alive:false, the PUBLIC
+// dayOutcome (never a role, D8), and either advances to the NEXT night —
 // phase:'night', round+1 (round only increments here; End Night, task 6, leaves it
 // unchanged) — or, on a win, ends the game: game -> {phase:'ended', round, winner}.
+//
+// [2d] The voted-out player's lovers die in the same atomic write (spec-2d FR-12; pairs
+// from round 1's Cupid "link" actions, as in resolveNightOnClient), and a voted-out
+// Jester wins outright, overriding every other result (FR-3/4).
 //
 // publicRoles (FR-15) is a SECOND, separate write made only after the first succeeds —
 // see the matching note in resolveNightOnClient.ts: its rule requires
@@ -26,20 +30,23 @@ import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveDay } from "./resolveDay";
+import { loverPairs } from "./lovers";
 import { checkWin } from "./checkWin";
 import { withTimeout } from "../withTimeout";
-import type { PlayerEntry, PrivateRoleEntry, Vote } from "../room/types";
+import type { NightAction, PlayerEntry, PrivateRoleEntry, Vote } from "../room/types";
 
 export async function resolveDayOnClient(code: string, round: number): Promise<void> {
-  const [votesSnap, rolesSnap, playersSnap] = await withTimeout(
+  const [votesSnap, round1Snap, rolesSnap, playersSnap] = await withTimeout(
     Promise.all([
       get(ref(db, roomPaths.votes(code, round))),
+      get(ref(db, roomPaths.nightActions(code, 1))),
       get(ref(db, roomPaths.privateRoles(code))),
       get(ref(db, roomPaths.players(code))),
     ]),
     "resolveDayOnClient: reading votes/privateRoles/players",
   );
   const votes = (votesSnap.val() ?? {}) as Record<string, Vote>;
+  const round1Actions = (round1Snap.val() ?? {}) as Record<string, NightAction>;
   const privateRoles = (rolesSnap.val() ?? {}) as Record<string, PrivateRoleEntry>;
   const players = (playersSnap.val() ?? {}) as Record<string, PlayerEntry>;
 
@@ -48,22 +55,33 @@ export async function resolveDayOnClient(code: string, round: number): Promise<v
     roles[uid] = entry.role;
   }
 
-  const { eliminatedUid } = resolveDay(votes);
+  const { eliminatedUid, eliminatedUids, jesterVotedOut } = resolveDay(
+    votes,
+    roles,
+    loverPairs(round1Actions, roles),
+  );
+  const deaths = eliminatedUids.filter((uid) => players[uid]?.alive === true);
 
   const updates: Record<string, unknown> = {};
-  if (eliminatedUid) {
-    updates[roomPaths.playerAlive(code, eliminatedUid)] = false;
+  for (const uid of deaths) {
+    updates[roomPaths.playerAlive(code, uid)] = false;
   }
   updates[roomPaths.dayOutcome(code, round)] = {
     eliminatedUid: eliminatedUid ?? null,
     resolvedAt: Date.now(),
+    ...(deaths.length > 0 && {
+      eliminatedUids: Object.fromEntries(deaths.map((uid) => [uid, true])),
+    }),
   };
 
-  // The roster AFTER today's elimination — who checkWin evaluates.
+  // The roster AFTER every one of today's deaths — who checkWin evaluates.
   const aliveUids = Object.entries(players)
-    .filter(([uid, p]) => p.alive === true && uid !== eliminatedUid)
+    .filter(([uid, p]) => p.alive === true && !deaths.includes(uid))
     .map(([uid]) => uid);
-  const winner = checkWin(aliveUids.map((uid) => roles[uid]));
+  const winner = checkWin(
+    aliveUids.map((uid) => roles[uid]),
+    jesterVotedOut,
+  );
 
   if (winner) {
     updates[`${roomPaths.game(code)}/phase`] = "ended";

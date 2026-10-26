@@ -3,11 +3,17 @@
 //
 // Reads round N's nightActions, the true roles (moderator-read of privateRoles, D3), and
 // the current roster (for who's alive), runs the pure resolveNight (task 3), then checks
-// the pure checkWin against the roster AFTER this elimination. One atomic write: flips
-// the eliminated player (if any) to alive:false, writes each Detective's PRIVATE
-// nightResults, writes the PUBLIC nightOutcome (who died, or no one — never a role, D8),
-// and either advances game.phase to "day" (round untouched — night/day of the same round
-// share the number) or, on a win, ends the game: game -> {phase:'ended', round, winner}.
+// the pure checkWin against the roster AFTER every death. One atomic write: flips each
+// eliminated player to alive:false, writes each Detective's PRIVATE nightResults, writes
+// the PUBLIC nightOutcome (who died, or no one — never a role, D8), and either advances
+// game.phase to "day" (round untouched — night/day of the same round share the number)
+// or, on a win, ends the game: game -> {phase:'ended', round, winner}.
+//
+// [2d] Tonight can kill several players at once (Granny's Mafia, linked lovers — spec-2d
+// FR-21). Lover pairs come from round 1's Cupid "link" actions (the moderator has NO read
+// on the private `lovers` node — spec-2d D6). Every death lands in the SAME atomic update
+// as the outcome and the phase/winner change, so no device ever sees one lover dead and
+// the other alive, and the win check only ever sees the complete result.
 //
 // publicRoles (FR-15) is a SECOND, separate write made only after the first succeeds.
 // The `publicRoles` rule requires `game.phase === 'ended'`, and Security Rules read
@@ -25,20 +31,23 @@ import { get, ref, update } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import { resolveNight } from "./resolveNight";
+import { loverPairs } from "./lovers";
 import { checkWin } from "./checkWin";
 import { withTimeout } from "../withTimeout";
 import type { NightAction, PlayerEntry, PrivateRoleEntry } from "../room/types";
 
 export async function resolveNightOnClient(code: string, round: number): Promise<void> {
-  const [actionsSnap, rolesSnap, playersSnap] = await withTimeout(
+  const [actionsSnap, round1Snap, rolesSnap, playersSnap] = await withTimeout(
     Promise.all([
       get(ref(db, roomPaths.nightActions(code, round))),
+      get(ref(db, roomPaths.nightActions(code, 1))),
       get(ref(db, roomPaths.privateRoles(code))),
       get(ref(db, roomPaths.players(code))),
     ]),
     "resolveNightOnClient: reading nightActions/privateRoles/players",
   );
   const actions = (actionsSnap.val() ?? {}) as Record<string, NightAction>;
+  const round1Actions = (round1Snap.val() ?? {}) as Record<string, NightAction>;
   const privateRoles = (rolesSnap.val() ?? {}) as Record<string, PrivateRoleEntry>;
   const players = (playersSnap.val() ?? {}) as Record<string, PlayerEntry>;
 
@@ -47,23 +56,34 @@ export async function resolveNightOnClient(code: string, round: number): Promise
     roles[uid] = entry.role;
   }
 
-  const { eliminatedUid, detectiveResults } = resolveNight(actions, roles);
+  const { eliminatedUids, detectiveResults } = resolveNight(
+    actions,
+    roles,
+    loverPairs(round1Actions, roles),
+  );
+  // Only living players can die; a linked partner who is somehow already dead stays as-is.
+  const deaths = eliminatedUids.filter((uid) => players[uid]?.alive === true);
 
   const updates: Record<string, unknown> = {};
-  if (eliminatedUid) {
-    updates[roomPaths.playerAlive(code, eliminatedUid)] = false;
+  for (const uid of deaths) {
+    updates[roomPaths.playerAlive(code, uid)] = false;
   }
   for (const [detectiveUid, result] of Object.entries(detectiveResults)) {
     updates[roomPaths.nightResult(code, round, detectiveUid)] = result;
   }
   updates[roomPaths.nightOutcome(code, round)] = {
-    eliminatedUid: eliminatedUid ?? null,
     resolvedAt: Date.now(),
+    ...(deaths.length > 0 && {
+      eliminatedUids: Object.fromEntries(deaths.map((uid) => [uid, true])),
+    }),
+    // Single-death fallback for clients that predate eliminatedUids (spec-2d D11). Never
+    // written for 2+ deaths, so it can't hint which death was the Mafia's target.
+    ...(deaths.length === 1 && { eliminatedUid: deaths[0] }),
   };
 
-  // The roster AFTER tonight's elimination — who checkWin evaluates.
+  // The roster AFTER every one of tonight's deaths — who checkWin evaluates.
   const aliveUids = Object.entries(players)
-    .filter(([uid, p]) => p.alive === true && uid !== eliminatedUid)
+    .filter(([uid, p]) => p.alive === true && !deaths.includes(uid))
     .map(([uid]) => uid);
   const winner = checkWin(aliveUids.map((uid) => roles[uid]));
 
