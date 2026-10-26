@@ -16,6 +16,7 @@ import type {
   ChatMessage,
   DayOutcome,
   Game,
+  LoversEntry,
   MafiaTeamEntry,
   NightAction,
   NightOutcome,
@@ -259,6 +260,15 @@ export function useDayOutcome(
   return useDbValue<DayOutcome>(
     code && round !== null ? roomPaths.dayOutcome(code, round) : null,
   );
+}
+
+/** [2d] This client's OWN lover partners (partnerUid -> true) — own entry only; absent
+ *  for anyone Cupid didn't pick. No one else can read it, the moderator included. */
+export function useMyLovers(
+  code: string | null,
+  uid: string | null,
+): Subscription<LoversEntry> {
+  return useDbValue<LoversEntry>(code && uid ? roomPaths.loversEntry(code, uid) : null);
 }
 
 /** PUBLIC uid->role reveal — absent until the game ends (FR-15, D8). */

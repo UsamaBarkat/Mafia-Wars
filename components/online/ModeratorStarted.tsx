@@ -28,6 +28,8 @@ import { GameOverScreen } from "@/components/screens/GameOverScreen";
 // Civilians and custom roles never submit a nightAction (D1), so they don't belong in the
 // night "X of Y acted" denominator.
 const NIGHT_ACTION_ROLES = new Set(["Mafia", "Doctor", "Detective"]);
+// [2d] Cupid acts on Night 1 only (spec-2d FR-29); Jester/Granny never act.
+const NIGHT_1_ONLY_ROLES = new Set(["Cupid"]);
 
 export function ModeratorStarted() {
   const { state, actions } = useGame();
@@ -107,9 +109,14 @@ export function ModeratorStarted() {
       // Denominator = alive players who actually HAVE a night action to submit — not
       // every living player. Civilians/custom roles never submit one (D1), so counting
       // them here would make the counter unable to ever reach its own total (the bug).
-      const actionableAliveCount = Object.entries(players.data ?? {}).filter(
-        ([uid, p]) => p.alive === true && NIGHT_ACTION_ROLES.has(privateRoles.data?.[uid]?.role ?? ""),
-      ).length;
+      const isNight1 = game.data.round === 1;
+      const actionableAliveCount = Object.entries(players.data ?? {}).filter(([uid, p]) => {
+        const role = privateRoles.data?.[uid]?.role ?? "";
+        return (
+          p.alive === true &&
+          (NIGHT_ACTION_ROLES.has(role) || (isNight1 && NIGHT_1_ONLY_ROLES.has(role)))
+        );
+      }).length;
       const submittedCount = Object.keys(nightActions.data ?? {}).length;
 
       return (

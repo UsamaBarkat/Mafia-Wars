@@ -17,8 +17,10 @@ import {
   useTeammateNightActions,
 } from "@/lib/room/subscriptions";
 import { submitNightAction } from "@/lib/game/submitNightAction";
+import { submitCupidLink } from "@/lib/game/submitCupidLink";
 import { roomPaths } from "@/lib/room/paths";
 import { NightAction } from "@/components/online/NightAction";
+import { CupidPicker } from "@/components/online/CupidPicker";
 import { Chat } from "@/components/online/Chat";
 import { SpectatorView } from "@/components/screens/SpectatorView";
 import type { NightActionKind } from "@/lib/room/types";
@@ -27,6 +29,7 @@ import type { NightActionKind } from "@/lib/room/types";
 const MAFIA = "Mafia";
 const DOCTOR = "Doctor";
 const DETECTIVE = "Detective";
+const CUPID = "Cupid";
 
 export function NightScreen() {
   const { state } = useGame();
@@ -43,6 +46,9 @@ export function NightScreen() {
   // no-op for non-Mafia, since myMafiaTeam.data is only ever populated for Mafia.
   const mateUids = myMafiaTeam.data?.mates ?? [];
   const teammateActions = useTeammateNightActions(code, round, mateUids);
+  // [2d] Cupid's one-time round-1 link, shown to Cupid for the rest of the game (spec-2d
+  // FR-8). Inactive (null round) for every other role.
+  const myLink = useMyNightAction(code, myRole.data?.role === CUPID ? 1 : null, uid);
 
   // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
   console.log("[MAFIA-DEBUG] NightScreen render:", {
@@ -177,7 +183,39 @@ export function NightScreen() {
     );
   }
 
-  // Civilians and custom roles have no night power (D1) — they wait.
+  // [2d] Cupid links two lovers on Night 1 only (spec-2d FR-7..FR-9); afterwards he just
+  // sees who he linked and otherwise waits like a Civilian.
+  if (role === CUPID) {
+    const link = myLink.data?.action === "link" ? myLink.data : null;
+    if (link) {
+      const nameOf = (u: string | undefined) => (u && players.data?.[u]?.name) || "Someone";
+      return (
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-center text-sm text-neutral-400">
+          <p>
+            💘 You linked <span className="font-semibold text-white">{nameOf(link.targetUid)}</span>{" "}
+            and <span className="font-semibold text-white">{nameOf(link.secondTargetUid)}</span>.
+          </p>
+          <p className="mt-1">No action tonight — waiting for the night to end…</p>
+        </div>
+      );
+    }
+    if (round === 1) {
+      return (
+        <CupidPicker
+          targets={targetsExcludingSelf}
+          onConfirm={(firstUid, secondUid) => {
+            if (!code || !uid) return;
+            submitCupidLink(code, uid, firstUid, secondUid).catch((e) =>
+              console.error("submitCupidLink failed:", e),
+            );
+          }}
+        />
+      );
+    }
+  }
+
+  // Civilians, Jester, Granny, Cupid after Night 1, and custom roles have no night power
+  // (D1, spec-2d FR-1/7/16) — they wait.
   return (
     <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-center text-sm text-neutral-400">
       No action tonight — waiting for the night to end…

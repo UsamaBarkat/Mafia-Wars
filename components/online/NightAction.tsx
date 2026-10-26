@@ -4,6 +4,8 @@
 // protect / Detective investigate all share this shape (spec-2b FR-3). Tapping a target
 // submits immediately; the current submission (if any) stays highlighted and can be
 // changed by tapping a different target (submitNightAction overwrites the prior choice).
+// [2d] Re-tapping the current choice does nothing: a re-save would give it a new
+// submittedAt and could cost a Mafia "first pick" on Granny (spec-2d FR-20).
 
 export function NightAction({
   heading,
@@ -39,7 +41,9 @@ export function NightAction({
               <li key={t.uid}>
                 <button
                   type="button"
-                  onClick={() => onSubmit(t.uid)}
+                  onClick={() => {
+                    if (!selected) onSubmit(t.uid);
+                  }}
                   className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-medium ${
                     selected
                       ? "bg-emerald-700 text-white"
