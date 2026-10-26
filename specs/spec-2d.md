@@ -150,20 +150,22 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 
 ## Acceptance Criteria
 
-- [ ] Online config shows Jester/Cupid/Granny (count 0, cap 20, non-removable). A custom role can't use any built-in name. Phase 1 config is unchanged.
-- [ ] The reveal shows each new role's icon and description.
-- [ ] The Jester is voted out → the game ends with "The Jester wins!" and a full reveal, even when Town or Mafia would also win at that moment.
-- [ ] The Jester killed at night, or dying as a lover, doesn't win. The Jester counts as non-Mafia for parity.
-- [ ] Cupid (Night 1 only, alive) can link two distinct other living players exactly once. Each of these is **denied by rules**: linking himself, changing or deleting the link, linking on Night 2+, a non-Cupid writing `link` or `lovers`, and a dead Cupid acting.
-- [ ] Each lover can read only their own `lovers` entry. Other players, spectators, Cupid and the moderator are denied (rules-verified).
-- [ ] No Cupid pick → no lovers, and the night resolves.
-- [ ] A lover dies by night kill, by day vote, or as Granny's Mafia → the partner dies in the same atomic write, and the win check sees all deaths.
-- [ ] The Doctor saves a lover → no deaths, and the link persists.
-- [ ] Granny killed → the Mafia with the earliest final `submittedAt` also dies. A changed pick re-times it. A tie is broken securely. A Doctor save or a disagreement → nothing happens.
-- [ ] Night outcomes name every dead player (sorted, no role, no cause). The day outcome shows the voted-out player plus "also eliminated".
-- [ ] Play Again clears `lovers`.
-- [ ] 2b/2c regressions still pass: role secrecy, Mafia unanimous kill, Doctor cancel, Detective result, day tie/Skip, Town/Mafia wins, chats, Play Again.
-- [ ] `tsc --noEmit` and `next build` are clean, with no `Math.random`.
+- [ ] Online config shows Jester/Cupid/Granny (count 0, cap 20, non-removable). A custom role can't use any built-in name. Phase 1 config is unchanged. *(The seed/backfill data is emulator-verified; the on-screen rows still need a browser check.)*
+- [ ] The reveal shows each new role's icon and description. *(UI only, needs a browser check.)*
+- [x] The Jester is voted out → the game ends with "The Jester wins!" and a full reveal, even when Town or Mafia would also win at that moment.
+- [x] The Jester killed at night, or dying as a lover, doesn't win. The Jester counts as non-Mafia for parity.
+- [x] Cupid (Night 1 only, alive) can link two distinct other living players exactly once. Each of these is **denied by rules**: linking himself, changing or deleting the link, linking on Night 2+, a non-Cupid writing `link` or `lovers`, and a dead Cupid acting.
+- [x] Each lover can read only their own `lovers` entry. Other players, spectators, Cupid and the moderator are denied (rules-verified).
+- [x] No Cupid pick → no lovers, and the night resolves.
+- [x] A lover dies by night kill, by day vote, or as Granny's Mafia → the partner dies in the same atomic write, and the win check sees all deaths.
+- [x] The Doctor saves a lover → no deaths, and the link persists.
+- [x] Granny killed → the Mafia with the earliest final `submittedAt` also dies. A changed pick re-times it. A tie is broken securely. A Doctor save or a disagreement → nothing happens.
+- [x] Night outcomes name every dead player (sorted, no role, no cause). The day outcome shows the voted-out player plus "also eliminated".
+- [x] Play Again clears `lovers`.
+- [x] 2b/2c regressions still pass: role secrecy, Mafia unanimous kill, Doctor cancel, Detective result, day tie/Skip, Town/Mafia wins, chats, Play Again.
+- [x] `tsc --noEmit` and `next build` are clean, with no `Math.random`.
+
+*Ticked items are verified by the three scripts in `scripts/` (167/167 checks) plus `tsc`/`next build`. UI wording, layout and phone/desktop rendering still need a manual multi-device playtest; none was possible in the build session.*
 
 ## Settled Decisions
 

@@ -186,6 +186,15 @@ export function NightScreen() {
   // [2d] Cupid links two lovers on Night 1 only (spec-2d FR-7..FR-9); afterwards he just
   // sees who he linked and otherwise waits like a Civilian.
   if (role === CUPID) {
+    // Wait for the saved link before offering the picker, so a reconnecting Cupid who
+    // already linked never sees it flash back (the rules would deny a second link anyway).
+    if (myLink.loading) {
+      return (
+        <div className="rounded-2xl border border-neutral-800 bg-neutral-900 p-4 text-center text-sm text-neutral-400">
+          Loading…
+        </div>
+      );
+    }
     const link = myLink.data?.action === "link" ? myLink.data : null;
     if (link) {
       const nameOf = (u: string | undefined) => (u && players.data?.[u]?.name) || "Someone";

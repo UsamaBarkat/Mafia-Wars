@@ -37,6 +37,7 @@ let app: {
   resolveNightOnClient: typeof import("../lib/game/resolveNightOnClient").resolveNightOnClient;
   resolveDayOnClient: typeof import("../lib/game/resolveDayOnClient").resolveDayOnClient;
   resetForPlayAgain: typeof import("../lib/room/resetForPlayAgain").resetForPlayAgain;
+  config: typeof import("../lib/room/config");
 };
 
 async function loadApp() {
@@ -48,6 +49,7 @@ async function loadApp() {
     resolveNightOnClient: (await import("../lib/game/resolveNightOnClient")).resolveNightOnClient,
     resolveDayOnClient: (await import("../lib/game/resolveDayOnClient")).resolveDayOnClient,
     resetForPlayAgain: (await import("../lib/room/resetForPlayAgain")).resetForPlayAgain,
+    config: await import("../lib/room/config"),
   };
 }
 
@@ -322,6 +324,34 @@ async function main() {
       await app.resetForPlayAgain(code, [m1.uid, civA.uid, civB.uid, civC.uid]);
       return true;
     });
+  }
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S12: role config seed + backfill (real lib/room/config) ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    await adminPut(`rooms/${code}/meta`, { moderatorId: modUid, status: "lobby", createdAt: 0, lastActivity: 0 });
+    await app.config.seedDefaultRoles(code);
+    const seeded = (await adminGet(`rooms/${code}/config/roles`)) as Record<string, { name: string; count: number; cap: number; isStandard: boolean }>;
+    await check("a new room seeds 7 built-in roles", () => same(Object.keys(seeded), ["mafia", "detective", "doctor", "civilian", "jester", "cupid", "granny"]));
+    await check("Jester/Cupid/Granny start at count 0, cap 20, non-removable", () =>
+      ["jester", "cupid", "granny"].every((id) => seeded[id].count === 0 && seeded[id].cap === 20 && seeded[id].isStandard));
+    await check("the standard four keep their Phase 1 defaults (1/1/1/7)", () =>
+      seeded.mafia.count === 1 && seeded.detective.count === 1 && seeded.doctor.count === 1 && seeded.civilian.count === 7);
+
+    // A pre-2d room: only the standard four, with the moderator's own counts.
+    const old = freshCode();
+    await adminPut(`rooms/${old}/meta`, { moderatorId: modUid, status: "lobby", createdAt: 0, lastActivity: 0 });
+    await adminPut(`rooms/${old}/config/roles`, {
+      mafia: { id: "mafia", name: "Mafia", count: 2, cap: 20, isStandard: true },
+      civilian: { id: "civilian", name: "Civilian", count: 4, cap: 100, isStandard: true },
+    });
+    await app.config.addMissingBuiltInRoles(old, ["mafia", "civilian"]);
+    const backfilled = (await adminGet(`rooms/${old}/config/roles`)) as Record<string, { count: number }>;
+    await check("a pre-2d room gets the missing rows at 0", () =>
+      backfilled.jester?.count === 0 && backfilled.cupid?.count === 0 && backfilled.granny?.count === 0 && backfilled.doctor?.count === 0);
+    await check("...without touching the moderator's existing counts", () => backfilled.mafia.count === 2 && backfilled.civilian.count === 4);
   }
 
   summary();
