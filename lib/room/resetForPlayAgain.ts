@@ -14,6 +14,9 @@
 // they're dealt. Clearing rounds and mafiaTeam is a CORRECTNESS requirement (FR-16): a
 // stale nightActions/{uid} could be silently recounted in the new game's round 1; a stale
 // mafiaTeam/{uid} could show a player teammates from a team they're no longer on.
+// [2d] `lovers` is cleared for the same reason (spec-2d FR-30): a stale entry would show
+// a player a "partner" from the previous game. (Cupid's link action, which the resolver
+// reads, already goes with `rounds`.)
 //
 // Deleting a node (setting it to null in a multi-path update) only requires .write
 // permission at that path — it does not re-trigger that node's own nested .validate
@@ -45,6 +48,7 @@ export async function resetForPlayAgain(code: string, playerUids: string[]): Pro
     [roomPaths.chat(code)]: null,
     [roomPaths.mafiaChat(code)]: null,
     [roomPaths.dayChat(code)]: null,
+    [roomPaths.lovers(code)]: null,
   };
 
   for (const uid of playerUids) {

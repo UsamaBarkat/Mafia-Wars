@@ -6,8 +6,12 @@
 // nightActions/{uid} any time before the moderator ends the night (no `!data.exists()`
 // lock), so a player can change their target — this always replaces any earlier choice
 // for the round with one complete, valid NightAction.
+//
+// [2d] submittedAt is the SERVER's clock, not the device's (spec-2d D10): Granny's
+// "first Mafia to pick her" rule compares times from different phones, and phone clocks
+// drift by seconds. Cupid's one-time link goes through submitCupidLink instead.
 
-import { ref, set } from "firebase/database";
+import { ref, serverTimestamp, set } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { roomPaths } from "../room/paths";
 import type { NightActionKind } from "../room/types";
@@ -24,6 +28,6 @@ export async function submitNightAction(
     role,
     action,
     targetUid,
-    submittedAt: Date.now(),
+    submittedAt: serverTimestamp(),
   });
 }
