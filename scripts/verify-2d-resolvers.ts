@@ -152,7 +152,7 @@ async function main() {
   }
 
   // ---------------------------------------------------------------------------------
-  console.log("\n== S3: Granny (real submitNightAction) — first Mafia dies, and his lover too ==");
+  console.log("\n== S3: Granny (real submitNightAction) — first Mafia dies instead, and his lover too ==");
   {
     const code = freshCode();
     const firstMafiaUid = await become();
@@ -172,8 +172,9 @@ async function main() {
     await adminPut(`rooms/${code}/meta/moderatorId`, modUid);
     await app.resolveNightOnClient(code, 2);
     const outcome = (await adminGet(`rooms/${code}/rounds/2/nightOutcome`)) as Record<string, unknown>;
-    await check("Granny + first Mafia + that Mafia's lover all die in one write",
-      () => same(keys(outcome.eliminatedUids), [gran.uid, firstMafiaUid, civA.uid]));
+    await check("first Mafia + that Mafia's lover die in one write; Granny is not among them",
+      () => same(keys(outcome.eliminatedUids), [firstMafiaUid, civA.uid]));
+    await check("Granny survives", async () => await alive(code, gran.uid));
     await check("the later Mafia survives", async () => await alive(code, m2.uid));
     await check("1 Mafia vs 4 others → game continues to day", async () => (await adminGet(`rooms/${code}/game/phase`)) === "day");
   }
@@ -194,21 +195,106 @@ async function main() {
     await killAs(m1, code, 1, gran.uid); // …and back: re-saved, now later than m2
     await app.resolveNightOnClient(code, 1);
     const outcome = (await adminGet(`rooms/${code}/rounds/1/nightOutcome`)) as Record<string, unknown>;
-    await check("m2 (unchanged, earlier final pick) dies with Granny; m1 lives",
-      () => same(keys(outcome.eliminatedUids), [gran.uid, m2.uid]));
+    await check("m2 (unchanged, earlier final pick) dies instead of Granny; m1 and Granny live",
+      () => same(keys(outcome.eliminatedUids), [m2.uid]) && outcome.eliminatedUid === m2.uid);
   }
 
   // ---------------------------------------------------------------------------------
-  console.log("\n== S5: Solo Mafia kills Granny → Town wins that night ==");
+  console.log("\n== S5: Solo Mafia targets Granny → he dies, Town wins that night ==");
   {
     const code = freshCode();
     const modUid = await become();
     await seed(code, modUid, { [m1.uid]: "Mafia", [gran.uid]: "Granny", [civA.uid]: "Civilian", [civB.uid]: "Civilian" }, { phase: "night", round: 1 });
     await killAs(m1, code, 1, gran.uid);
     await app.resolveNightOnClient(code, 1);
+    await check("only the Mafia died; Granny lives", async () =>
+      same(keys(await adminGet(`rooms/${code}/rounds/1/nightOutcome/eliminatedUids`)), [m1.uid]) && (await alive(code, gran.uid)));
     await check("winner is town", async () => (await adminGet(`rooms/${code}/game/winner`)) === "town");
     await check("game ended", async () => (await adminGet(`rooms/${code}/game/phase`)) === "ended");
     await check("publicRoles written after end", async () => (await adminGet(`rooms/${code}/publicRoles/${gran.uid}`)) === "Granny");
+  }
+
+  /** Two Mafia both pick Granny (m1 clearly first), plus a real Doctor's protect pick. */
+  async function grannyNight(code: string, protectUid: string | null) {
+    await killAs(m1, code, 1, gran.uid);
+    await pause(30);
+    await killAs(m2, code, 1, gran.uid);
+    if (protectUid) {
+      await set(ref(doc.db, `rooms/${code}/rounds/1/nightActions/${doc.uid}`), {
+        role: "Doctor", action: "protect", targetUid: protectUid, submittedAt: serverTimestamp(),
+      });
+    }
+  }
+  const grannyCast = () => ({ [m1.uid]: "Mafia", [m2.uid]: "Mafia", [gran.uid]: "Granny", [doc.uid]: "Doctor",
+    [civA.uid]: "Civilian", [civB.uid]: "Civilian", [civC.uid]: "Civilian" });
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S5b: Doctor protects Granny → the first Mafia still dies, Granny lives ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    await seed(code, modUid, grannyCast(), { phase: "night", round: 1 });
+    await grannyNight(code, gran.uid);
+    await app.resolveNightOnClient(code, 1);
+    await check("only m1 died", async () => same(keys(await adminGet(`rooms/${code}/rounds/1/nightOutcome/eliminatedUids`)), [m1.uid]));
+    await check("Granny and m2 alive", async () => (await alive(code, gran.uid)) && (await alive(code, m2.uid)));
+  }
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S5c: Doctor protects the retaliation target → he lives, Granny + her lover die, win check after ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    // 2 Mafia, Granny, Doctor, civA (Granny's lover), civB (Cupid). Granny + civA dying
+    // leaves 2 Mafia vs Doctor + Cupid → Mafia parity, but only if BOTH deaths count.
+    await seed(code, modUid, { [m1.uid]: "Mafia", [m2.uid]: "Mafia", [gran.uid]: "Granny", [doc.uid]: "Doctor",
+      [civA.uid]: "Civilian", [civB.uid]: "Cupid" }, { phase: "night", round: 1 });
+    await adminPut(`rooms/${code}/rounds/1/nightActions/${civB.uid}`, { role: "Cupid", action: "link", targetUid: gran.uid, secondTargetUid: civA.uid, submittedAt: 1 });
+    await grannyNight(code, m1.uid);
+    await app.resolveNightOnClient(code, 1);
+    await check("Granny and her lover died; the protected Mafia lives", async () =>
+      same(keys(await adminGet(`rooms/${code}/rounds/1/nightOutcome/eliminatedUids`)), [gran.uid, civA.uid]) && (await alive(code, m1.uid)));
+    await check("win check saw both deaths: Mafia parity win", async () => (await adminGet(`rooms/${code}/game/winner`)) === "mafia");
+  }
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S5d: Doctor protects the OTHER Mafia → the first picker still dies ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    await seed(code, modUid, grannyCast(), { phase: "night", round: 1 });
+    await grannyNight(code, m2.uid);
+    await app.resolveNightOnClient(code, 1);
+    await check("only m1 died", async () => same(keys(await adminGet(`rooms/${code}/rounds/1/nightOutcome/eliminatedUids`)), [m1.uid]));
+  }
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S5e: Mafia disagree (one on Granny) → nothing happens ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    await seed(code, modUid, grannyCast(), { phase: "night", round: 1 });
+    await killAs(m1, code, 1, gran.uid);
+    await killAs(m2, code, 1, civA.uid);
+    await app.resolveNightOnClient(code, 1);
+    await check("no one died", async () => (await adminGet(`rooms/${code}/rounds/1/nightOutcome/eliminatedUids`)) === null);
+    await check("game advances to day", async () => (await adminGet(`rooms/${code}/game/phase`)) === "day");
+  }
+
+  // ---------------------------------------------------------------------------------
+  console.log("\n== S5f: Granny voted out by day → no Mafia dies ==");
+  {
+    const code = freshCode();
+    const modUid = await become();
+    await seed(code, modUid, grannyCast(), { phase: "day", round: 1 });
+    for (const v of [m1, m2, civA, civB]) {
+      await set(ref(v.db, `rooms/${code}/rounds/1/votes/${v.uid}`), { targetUid: gran.uid, votedAt: 1 });
+    }
+    await app.resolveDayOnClient(code, 1);
+    await check("only Granny eliminated", async () =>
+      same(keys(await adminGet(`rooms/${code}/rounds/1/dayOutcome/eliminatedUids`)), [gran.uid]));
+    await check("both Mafia alive; next night begins", async () =>
+      (await alive(code, m1.uid)) && (await alive(code, m2.uid)) && (await adminGet(`rooms/${code}/game/round`)) === 2);
   }
 
   // ---------------------------------------------------------------------------------
