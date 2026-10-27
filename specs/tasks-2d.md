@@ -147,17 +147,20 @@ All 8 tasks were built in one autonomous pass, at the user's explicit request ("
   - No `Math.random`.
   - **Not done:** real multi-browser or phone UI testing (no browser in this session), so manual playtesting is still needed. Also, the pre-existing `TEMP DEBUG` `console.log`s in `NightScreen.tsx`/`subscriptions.ts` (from the Mafia-warning investigation) were left untouched on purpose.
 
-### Status at end of build session
+### Status
 
-Slice 2d built and committed locally (9 commits), **NOT pushed, NOT deployed**. 167 scripted checks pass, `tsc` and `next build` clean.
+**Follow-up session (2026-10-27):**
 
-**NOT yet tested in a real browser or on a phone:** Cupid picker, partner line, role cards, multi-death outcome text, new role-config rows.
+- **Mafia "haven't agreed" warning fixed.** The `nightActions/$uid` read rule now checks both players' `privateRoles`, not the pick's own contents. Before the fix, a teammate listener attached before the pick existed was denied and cancelled for good. `verify-2d-rules.ts` gained 9 checks for this; all three suites now pass 176/176.
+- **The temporary `[MAFIA-DEBUG]` `console.log`s are removed** from `NightScreen.tsx` and `subscriptions.ts`.
+- **Playwright e2e suite added** (`npm run test:e2e`, emulator + `localhost:3000` only). It runs 5 real multi-browser games: a moderator plus 5 players, each in their own browser context. Covered:
+  - Core loop: deal, night kill, day vote, Town win.
+  - The Mafia disagreement warning appears, then clears once picks match.
+  - Cupid picker and the private partner line; a lover death kills the partner.
+  - Granny takes the first Mafia picker.
+  - Jester vote-out → "The Jester wins!"
+- Rules deployed to production; code pushed to `origin/main`.
 
-**NEXT SESSION:**
+**Still not covered by the e2e suite:** phone-sized layouts, the role icon/description cards, and the new role-config rows (only their counts are exercised).
 
-1. Playtest locally with several browser windows (Cupid link, lover death, Granny kill, Jester vote-out).
-2. Deploy rules: `npx firebase-tools deploy --only database --project production`
-3. `git push origin main`
-4. Ask everyone in a live room to refresh.
-
-**Also still to clean up:** the old temporary `console.log` debug lines in `NightScreen.tsx` and `subscriptions.ts` from the Mafia-warning investigation.
+**NEXT:** ask everyone in a live room to refresh.
