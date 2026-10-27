@@ -163,8 +163,19 @@ All 8 tasks were built in one autonomous pass, at the user's explicit request ("
 
 **Granny rule change (2026-10-28, spec-2d D15 — replaces all earlier Granny designs):** the Mafia's agreed kill on Granny now kills the first Mafia picker *instead* of her; a Doctor on Granny doesn't stop it; a Doctor on that Mafia saves him and lets the kill on Granny through. `resolveNight.ts` changed (no rules change). Granny's card now reads "If the Mafia target you, one of them dies instead." Suites: logic 71/71, resolvers 51/51, rules 72/72 (194 total); e2e 5/5, with the Granny test now also checking her card and a day vote-out of her, and the Jester test confirming the built-in role card. Pushed as `07ede93`.
 
-**Live bug (2026-10-28): "Granny and the first Mafia both eliminated".** Not a code bug in the current build: the emulator reproduction of the exact night (2 Mafia agree on Granny, no Cupid, no protect) kills only the first picker, and the deployed bundle contains the new resolver. The previous resolver (`6105e7a`) gives exactly the reported result, so the moderator's tab was running a build from before the deploy. Fix: the stale-build guard (spec-2d FR‑24a) — `lib/buildVersion.ts`, `app/version.json/route.ts`, `next.config.ts`, `ModeratorStarted.tsx`. Resolvers 54/54 (new S5g reproduction), e2e 6/6 (new stale-moderator test). Not yet pushed or deployed.
+**Live bug (2026-10-28): "Granny and the first Mafia both eliminated".** Not a code bug in the current build: the emulator reproduction of the exact night (2 Mafia agree on Granny, no Cupid, no protect) kills only the first picker, and the deployed bundle contains the new resolver. The previous resolver (`6105e7a`) gives exactly the reported result, so the moderator's tab was running a build from before the deploy. Fix: the stale-build guard (spec-2d FR‑24a) — `lib/buildVersion.ts`, `app/version.json/route.ts`, `next.config.ts`, `ModeratorStarted.tsx`. Resolvers 54/54 (new S5g reproduction), e2e 6/6 (new stale-moderator test). Fix committed and pushed (`19eeff2`..`f33c568`).
 
 **Still not covered by the e2e suite:** phone-sized layouts, the role icon/description cards, and the new role-config rows (only their counts are exercised).
 
-**NEXT:** ask everyone in a live room to refresh.
+~~**NEXT:** ask everyone in a live room to refresh.~~ ✅ Done — superseded by the moderator version guard and the playtest checklist below.
+
+**Progress (2026-10-28):** Slice 2d is deployed: rules deployed and code pushed, including the final Granny rule and the moderator version guard.
+
+**STILL TO DO:** live playtest with the built-in Jester, Cupid and Granny rows in a NEW room, with everyone refreshed first. Check:
+
+- the Jester wins when voted out;
+- Granny's first picker dies while Granny survives;
+- the Mafia warning appears and clears;
+- Cupid's lovers die together.
+
+Cutie is deferred.
