@@ -20,6 +20,7 @@ import { beginNight1 } from "@/lib/game/beginNight1";
 import { resolveNightOnClient } from "@/lib/game/resolveNightOnClient";
 import { resolveDayOnClient } from "@/lib/game/resolveDayOnClient";
 import { roomPaths } from "@/lib/room/paths";
+import { isLatestBuild } from "@/lib/buildVersion";
 import { BackArrow } from "@/components/ui/BackArrow";
 import { Chat } from "@/components/online/Chat";
 import { GameOverScreen } from "@/components/screens/GameOverScreen";
@@ -43,6 +44,8 @@ export function ModeratorStarted() {
   const [starting, setStarting] = useState(false);
   const [ending, setEnding] = useState(false);
   const [endingDay, setEndingDay] = useState(false);
+  // A newer build is live: this tab would resolve with outdated rules (lib/buildVersion.ts).
+  const [staleBuild, setStaleBuild] = useState(false);
 
   // This component stays mounted for the whole game (it's returned unconditionally by
   // OnlineRevealScreen for the moderator, which itself renders continuously while the
@@ -69,10 +72,38 @@ export function ModeratorStarted() {
   const viewedCount = playerList.filter((p) => p.viewed === true).length;
   const allViewed = total > 0 && viewedCount === total;
 
+  /** False — and shows the refresh banner — when a newer build is live. Checked before
+   *  every phase change, since this device's code decides who dies (spec-2b D5). */
+  const ensureLatestBuild = async () => {
+    if (await isLatestBuild()) return true;
+    setStaleBuild(true);
+    return false;
+  };
+
+  const staleBanner = staleBuild && (
+    <div
+      role="alert"
+      className="rounded-2xl border border-amber-700 bg-amber-950/40 p-4 text-center text-sm text-amber-100"
+    >
+      A new version of the game is live. Refresh to keep going — your room is saved.
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="mt-3 block w-full rounded-xl bg-amber-600 px-4 py-2 font-bold uppercase tracking-wide text-white hover:bg-amber-700"
+      >
+        Refresh
+      </button>
+    </div>
+  );
+
   const handleBeginNight1 = async () => {
     if (!code || !allViewed || starting) return;
     setStarting(true);
     try {
+      if (!(await ensureLatestBuild())) {
+        setStarting(false);
+        return;
+      }
       const playerUids = Object.keys(players.data ?? {});
       await beginNight1(code, playerUids);
     } catch (e) {
@@ -85,6 +116,10 @@ export function ModeratorStarted() {
     if (!code || !game.data || ending) return;
     setEnding(true);
     try {
+      if (!(await ensureLatestBuild())) {
+        setEnding(false);
+        return;
+      }
       await resolveNightOnClient(code, game.data.round);
     } catch (e) {
       console.error("resolveNightOnClient failed:", e);
@@ -96,6 +131,10 @@ export function ModeratorStarted() {
     if (!code || !game.data || endingDay) return;
     setEndingDay(true);
     try {
+      if (!(await ensureLatestBuild())) {
+        setEndingDay(false);
+        return;
+      }
       await resolveDayOnClient(code, game.data.round);
     } catch (e) {
       console.error("resolveDayOnClient failed:", e);
@@ -142,6 +181,8 @@ export function ModeratorStarted() {
               </p>
             </div>
 
+            {staleBanner}
+
             <button
               type="button"
               onClick={handleEndNight}
@@ -180,6 +221,8 @@ export function ModeratorStarted() {
                 Votes are public and auditable — the moderator isn&apos;t trusted here.
               </p>
             </div>
+
+            {staleBanner}
 
             <button
               type="button"
@@ -261,6 +304,8 @@ export function ModeratorStarted() {
             ? "Everyone has seen their role — you're all set!"
             : "Waiting for everyone to see their role…"}
         </p>
+
+        {staleBanner}
 
         {allViewed && (
           <button
