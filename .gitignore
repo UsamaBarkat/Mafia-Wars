@@ -20,6 +20,10 @@ npm-debug.log*
 .firebase/
 firebase-export-*/
 
+# playwright e2e output
+/test-results/
+/playwright-report/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
