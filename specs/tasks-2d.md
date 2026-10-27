@@ -146,3 +146,18 @@ All 8 tasks were built in one autonomous pass, at the user's explicit request ("
   - All three suites pass (167/167 total).
   - No `Math.random`.
   - **Not done:** real multi-browser or phone UI testing (no browser in this session), so manual playtesting is still needed. Also, the pre-existing `TEMP DEBUG` `console.log`s in `NightScreen.tsx`/`subscriptions.ts` (from the Mafia-warning investigation) were left untouched on purpose.
+
+### Status at end of build session
+
+Slice 2d built and committed locally (9 commits), **NOT pushed, NOT deployed**. 167 scripted checks pass, `tsc` and `next build` clean.
+
+**NOT yet tested in a real browser or on a phone:** Cupid picker, partner line, role cards, multi-death outcome text, new role-config rows.
+
+**NEXT SESSION:**
+
+1. Playtest locally with several browser windows (Cupid link, lover death, Granny kill, Jester vote-out).
+2. Deploy rules: `npx firebase-tools deploy --only database --project production`
+3. `git push origin main`
+4. Ask everyone in a live room to refresh.
+
+**Also still to clean up:** the old temporary `console.log` debug lines in `NightScreen.tsx` and `subscriptions.ts` from the Mafia-warning investigation.
