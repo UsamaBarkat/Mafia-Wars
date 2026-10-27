@@ -146,10 +146,12 @@ export function useNightActions(
 }
 
 /** One actor's night action for a round, keyed by uid. Always readable for one's own
- *  uid; a living Mafia may ALSO read another Mafia's kill entry specifically (spec-2b
- *  FR-7's D6 revision — the shared-uid rules grant added for the live "haven't agreed"
- *  warning). Doctor/Detective actions stay fully private to their owner + the
- *  moderator, unchanged. Pass the caller's own uid for "my action", or a teammate's
+ *  uid; a living Mafia may ALSO read a fellow Mafia's entry (spec-2b FR-7's D6 revision
+ *  — the rules grant added for the live "haven't agreed" warning). The grant checks
+ *  both players' privateRoles, not the entry's contents, so it also allows reading an
+ *  entry that doesn't exist yet: a listener attached before the teammate picks isn't
+ *  denied (and cancelled for good). Doctor/Detective actions stay fully private to
+ *  their owner + the moderator, unchanged. Pass the caller's own uid for "my action", or a teammate's
  *  uid to read their kill pick. */
 export function useMyNightAction(
   code: string | null,
@@ -162,7 +164,7 @@ export function useMyNightAction(
 }
 
 /** Every uid in `mateUids`' submitted night action for a round, keyed by uid — only
- *  ever the readable ones (a living Mafia's own kill entries, per the rules grant
+ *  ever the readable ones (fellow Mafia's entries, per the rules grant
  *  documented on `useMyNightAction`). Used for the live "haven't agreed on a target"
  *  warning (spec-2b D6 revision); never rendered as anyone's role. A plain
  *  `useDbValue` call can't do this since the number of teammates varies between
@@ -175,34 +177,15 @@ export function useTeammateNightActions(
   const [actions, setActions] = useState<Record<string, NightAction>>({});
   const matesKey = mateUids.join(",");
 
-  // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
-  console.log("[MAFIA-DEBUG] useTeammateNightActions render:", { code, round, mateUids, matesKey });
-
   useEffect(() => {
-    // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
-    console.log("[MAFIA-DEBUG] useTeammateNightActions effect running:", { code, round, matesKey });
-
     setActions({});
-    if (!code || round === null || matesKey === "") {
-      // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
-      console.log("[MAFIA-DEBUG] useTeammateNightActions effect BAILED OUT (no listeners attached):", {
-        codeMissing: !code,
-        roundMissing: round === null,
-        matesKeyEmpty: matesKey === "",
-      });
-      return;
-    }
+    if (!code || round === null || matesKey === "") return;
 
     const unsubscribes = matesKey.split(",").map((mateUid) => {
-      const path = roomPaths.nightAction(code, round, mateUid);
-      // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
-      console.log("[MAFIA-DEBUG] attaching listener for teammate:", mateUid, "at path:", path);
-      const nodeRef = ref(db, path);
+      const nodeRef = ref(db, roomPaths.nightAction(code, round, mateUid));
       return onValue(
         nodeRef,
         (snap) => {
-          // TEMP DEBUG — remove once the disagreement-warning bug is diagnosed.
-          console.log("[MAFIA-DEBUG] read SUCCEEDED for teammate:", mateUid, "exists:", snap.exists(), "value:", snap.val());
           setActions((prev) => {
             if (!snap.exists()) {
               if (!(mateUid in prev)) return prev;
