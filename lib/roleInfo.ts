@@ -31,7 +31,7 @@ const ONLINE_ROLE_INFO: Record<string, RoleInfo> = {
   ...ROLE_INFO,
   Jester: { icon: "🃏", description: "Get voted out to win." },
   Cupid: { icon: "💘", description: "Pick two lovers on the first night." },
-  Granny: { icon: "👵", description: "If the Mafia kill you, one of them dies with you." },
+  Granny: { icon: "👵", description: "If the Mafia target you, one of them dies instead." },
 };
 
 export const CUSTOM_ROLE_INFO: RoleInfo = {
