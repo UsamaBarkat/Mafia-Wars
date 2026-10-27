@@ -54,6 +54,39 @@ test("night kill, day vote, Town wins", async ({ openPage }) => {
   });
 });
 
+test("a moderator tab on an outdated build can't resolve the night until it refreshes", async ({
+  openPage,
+}) => {
+  const game = await setUpGame(openPage, { Mafia: 1, Civilian: 4 });
+  const mafia = oneWithRole(game, "Mafia");
+  const [victim] = withRole(game, "Civilian");
+  await pickNightTarget(mafia.page, victim.name);
+
+  await test.step("a newer build goes live: End Night is refused with a refresh prompt", async () => {
+    // Only the moderator's tab sees the "newer deploy" (the live-bug scenario: a tab
+    // opened before the deploy would otherwise resolve with outdated rules).
+    await game.mod.route("**/version.json", (route) =>
+      route.fulfill({ json: { buildId: "a-newer-deploy" } }),
+    );
+    await game.mod.getByRole("button", { name: "End Night" }).click();
+    await expect(game.mod.getByText(/A new version of the game is live/)).toBeVisible();
+    await expect(game.mod.getByRole("heading", { name: "Night 1" })).toBeVisible();
+    await expect(game.mod.getByRole("button", { name: "End Night" })).toBeEnabled();
+    for (const s of game.seats) await expect(s.page.getByText("Night 1", { exact: true })).toBeVisible();
+  });
+
+  await test.step("after Refresh the room is restored and the night resolves", async () => {
+    await game.mod.unroute("**/version.json");
+    await game.mod.getByRole("button", { name: "Refresh" }).click();
+    await expect(game.mod.getByRole("heading", { name: "Night 1" })).toBeVisible();
+    await expect(game.mod.getByText(/A new version of the game is live/)).toBeHidden();
+    await endNight(game, 1);
+    for (const s of game.seats) {
+      await expect(s.page.getByText(`${victim.name} was eliminated`, { exact: true })).toBeVisible();
+    }
+  });
+});
+
 test("two Mafia see the 'haven't agreed' warning until their picks match", async ({
   openPage,
 }) => {
