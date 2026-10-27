@@ -282,6 +282,28 @@ async function main() {
   }
 
   // ---------------------------------------------------------------------------------
+  console.log("\n== S5g: live bug report — 2 Mafia agree on Granny, no Cupid, Doctor protects no one ==");
+  {
+    const code = freshCode();
+    const firstMafiaUid = await become();
+    await seed(code, "placeholder", { [firstMafiaUid]: "Mafia", [m2.uid]: "Mafia", [gran.uid]: "Granny",
+      [doc.uid]: "Doctor", [civA.uid]: "Civilian", [civB.uid]: "Civilian" }, { phase: "night", round: 1 });
+    // Both picks through the real submitNightAction path / rules, the first clearly earlier.
+    await app.submitNightAction(code, 1, firstMafiaUid, "Mafia", "kill", gran.uid);
+    await pause(30);
+    await killAs(m2, code, 1, gran.uid);
+    const modUid = await become();
+    await adminPut(`rooms/${code}/meta/moderatorId`, modUid);
+    await app.resolveNightOnClient(code, 1);
+    const outcome = (await adminGet(`rooms/${code}/rounds/1/nightOutcome`)) as Record<string, unknown>;
+    console.log("  outcome:", JSON.stringify(outcome), "| first Mafia:", firstMafiaUid, "| Granny:", gran.uid);
+    await check("outcome lists ONLY the first Mafia picker (not Granny)",
+      () => same(keys(outcome.eliminatedUids), [firstMafiaUid]) && outcome.eliminatedUid === firstMafiaUid);
+    await check("Granny is still alive in the roster", async () => await alive(code, gran.uid));
+    await check("the second Mafia is still alive", async () => await alive(code, m2.uid));
+  }
+
+  // ---------------------------------------------------------------------------------
   console.log("\n== S5f: Granny voted out by day → no Mafia dies ==");
   {
     const code = freshCode();
