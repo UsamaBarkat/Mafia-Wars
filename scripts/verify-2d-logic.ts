@@ -145,62 +145,99 @@ check("an unlinked death takes no one", same([...withLinkedDeaths(["doc"], pairA
   check("Cupid dying doesn't affect the lovers", same(r.eliminatedUids, ["cup"]), r);
 }
 
-console.log("\n== Granny ==");
+console.log("\n== Granny (final rule, spec-2d D15) ==");
+/** Living roles after `dead` are removed — what checkWin sees right after the night. */
+const aliveRolesAfter = (dead: readonly string[]) =>
+  Object.keys(roles).filter((u) => !dead.includes(u)).map((u) => roles[u]);
 {
   const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200) }, roles);
-  check("Granny killed: the earliest-picking Mafia (m1) dies with her", same(r.eliminatedUids, ["gran", "m1"]), r);
+  check("Mafia target Granny: the first picker (m1) dies INSTEAD, Granny survives", same(r.eliminatedUids, ["m1"]), r);
+  check("...and the second Mafia (m2) lives", !r.eliminatedUids.includes("m2"), r);
 }
 {
   const r = resolveNight({ m1: kill("gran", 300), m2: kill("gran", 200) }, roles);
-  check("changed pick: m1 re-saved later (300) so m2 (200) is first", same(r.eliminatedUids, ["gran", "m2"]), r);
-}
-{
-  const r = resolveNight({ m1: kill("gran", 100) }, roles);
-  check("solo Mafia kills Granny: both die", same(r.eliminatedUids, ["gran", "m1"]), r);
-  const alive = Object.keys(roles).filter((u) => !r.eliminatedUids.includes(u) && u !== "m2");
-  check("...and with no Mafia left Town wins that night", checkWin(alive.map((u) => roles[u])) === "town");
+  check("changed pick: m1 re-saved later (300) so m2 (200) is the retaliation target", same(r.eliminatedUids, ["m2"]), r);
 }
 {
   const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("gran") }, roles);
-  check("Doctor saves Granny => nobody dies", r.eliminatedUids.length === 0, r);
+  check("Doctor protects Granny: the first picker still dies, Granny survives", same(r.eliminatedUids, ["m1"]), r);
+}
+{
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("m1") }, roles);
+  check("Doctor protects the retaliation target: he lives and Granny dies", same(r.eliminatedUids, ["gran"]), r);
+}
+{
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("m2") }, roles);
+  check("Doctor protects the OTHER Mafia: the first picker still dies", same(r.eliminatedUids, ["m1"]), r);
+}
+{
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("civ1") }, roles);
+  check("Doctor protects a bystander: the first picker still dies", same(r.eliminatedUids, ["m1"]), r);
+}
+{
+  const twoDoctors = { ...roles, doc2: "Doctor" };
+  const r = resolveNight(
+    { m1: kill("gran", 100), doc: protect("m1"), doc2: { role: "Doctor", action: "protect", targetUid: "gran", submittedAt: 0 } },
+    twoDoctors,
+  );
+  check("two Doctors protect both Granny and the retaliation target: no one dies", r.eliminatedUids.length === 0, r);
 }
 {
   const r = resolveNight({ m1: kill("gran", 100), m2: kill("civ1", 50) }, roles);
   check("Mafia disagree (one on Granny) => no kill, no retaliation", r.eliminatedUids.length === 0, r);
 }
 {
-  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("m1") }, roles);
-  check("Doctor protecting the first Mafia doesn't save them (D8)", same(r.eliminatedUids, ["gran", "m1"]), r);
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200) }, roles, [["m1", "civ2"]]);
+  check("the dying Mafia is a lover: his partner dies too, Granny lives", same(r.eliminatedUids, ["m1", "civ2"]), r);
+}
+{
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("m1") }, roles, [["gran", "civ1"]]);
+  check("Granny dies after the Doctor save and is a lover: her partner dies too", same(r.eliminatedUids, ["gran", "civ1"]), r);
 }
 {
   const r = resolveNight({ m1: kill("gran", 100) }, roles, [["gran", "civ1"]]);
-  check("Granny who is a lover: her partner dies too", same(r.eliminatedUids, ["gran", "m1", "civ1"]), r);
-}
-{
-  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200) }, roles, [["m1", "civ2"]]);
-  check("Granny's Mafia is a lover: his partner dies too", same(r.eliminatedUids, ["gran", "m1", "civ2"]), r);
+  check("Granny is a lover but survives: her partner lives", same(r.eliminatedUids, ["m1"]), r);
 }
 {
   const r = resolveNight({ m1: kill("gran", 100) }, roles, [["gran", "m1"]]);
-  check("Granny and her killer are lovers: each listed once", same(r.eliminatedUids, ["gran", "m1"]) && r.eliminatedUids.length === 2, r);
+  check("Granny is the dying Mafia's lover: she dies as his partner, each listed once",
+    same(r.eliminatedUids, ["gran", "m1"]) && r.eliminatedUids.length === 2, r);
 }
 {
   const r = resolveDay(votesFor({ a: "gran", b: "gran" }), roles);
-  check("Granny voted out by day takes no Mafia", same(r.eliminatedUids, ["gran"]), r);
+  check("Granny voted out by day: she is removed, and no Mafia dies", same(r.eliminatedUids, ["gran"]) && r.eliminatedUid === "gran", r);
 }
 {
   const r = resolveNight({ m1: kill("civ1", 100) }, roles, [["civ1", "gran"]]);
   check("Granny dying as a lover takes no Mafia", same(r.eliminatedUids, ["civ1", "gran"]), r);
 }
 {
+  // Win check right after: a solo Mafia targets Granny and dies instead.
+  const solo = { m1: "Mafia", gran: "Granny", civ1: "Civilian", civ2: "Civilian" };
+  const r = resolveNight({ m1: kill("gran", 100) }, solo);
+  const alive = Object.keys(solo).filter((u) => !r.eliminatedUids.includes(u)).map((u) => solo[u as keyof typeof solo]);
+  check("solo Mafia targets Granny: he dies, Granny lives", same(r.eliminatedUids, ["m1"]), r);
+  check("...and the win check right after sees no Mafia left => Town", checkWin(alive) === "town");
+}
+{
+  // Win check right after a Doctor-saved retaliation: Granny's death can hand the Mafia parity.
+  const small = { m1: "Mafia", m2: "Mafia", gran: "Granny", doc: "Doctor", civ1: "Civilian" };
+  const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200), doc: protect("m1") }, small, [["gran", "civ1"]]);
+  const alive = Object.keys(small).filter((u) => !r.eliminatedUids.includes(u)).map((u) => small[u as keyof typeof small]);
+  check("Doctor-saved retaliation + Granny's lover: win check sees both deaths => Mafia parity",
+    same(r.eliminatedUids, ["gran", "civ1"]) && checkWin(alive) === "mafia", { r, alive });
+}
+check("win check after the standard retaliation (m1 dead): game continues",
+  checkWin(aliveRolesAfter(resolveNight({ m1: kill("gran", 100), m2: kill("gran", 200) }, roles).eliminatedUids)) === null);
+{
   const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 100) }, roles, [], (uids) => [...uids].sort()[1]);
-  check("exact tie uses the tie-break picker (injected: picks m2)", same(r.eliminatedUids, ["gran", "m2"]), r);
+  check("exact tie uses the tie-break picker (injected: picks m2)", same(r.eliminatedUids, ["m2"]), r);
 }
 {
   const picked = new Set<string>();
   for (let i = 0; i < 200; i++) {
     const r = resolveNight({ m1: kill("gran", 100), m2: kill("gran", 100) }, roles);
-    r.eliminatedUids.filter((u) => u !== "gran").forEach((u) => picked.add(u));
+    r.eliminatedUids.forEach((u) => picked.add(u));
   }
   check("exact tie with the default secure picker: only tied Mafia, both reachable", same([...picked], ["m1", "m2"]), [...picked]);
 }

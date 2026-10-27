@@ -9,8 +9,9 @@
 // game.phase to "day" (round untouched — night/day of the same round share the number)
 // or, on a win, ends the game: game -> {phase:'ended', round, winner}.
 //
-// [2d] Tonight can kill several players at once (Granny's Mafia, linked lovers — spec-2d
-// FR-21). Lover pairs come from round 1's Cupid "link" actions (the moderator has NO read
+// [2d] Tonight can kill several players at once (spec-2d FR-21): the Mafia kill — or, if
+// it landed on Granny, the first Mafia who picked her instead (FR-17..FR-19) — plus every
+// linked lover. Lover pairs come from round 1's Cupid "link" actions (the moderator has NO read
 // on the private `lovers` node — spec-2d D6). Every death lands in the SAME atomic update
 // as the outcome and the phase/winner change, so no device ever sees one lover dead and
 // the other alive, and the win check only ever sees the complete result.
