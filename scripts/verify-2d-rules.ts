@@ -4,7 +4,7 @@
 // Every check uses a real signed-in anonymous identity, so reads/writes go through the
 // rules exactly as a browser tab would. Room state is seeded via adminPut (rules bypassed).
 
-import { get, ref, remove, serverTimestamp, set, update } from "firebase/database";
+import { get, onValue, ref, remove, serverTimestamp, set, update } from "firebase/database";
 import {
   adminGet,
   adminPut,
@@ -312,6 +312,76 @@ async function main() {
   );
   await check("a non-Mafia is denied reading a Mafia's kill pick", () =>
     denied(get(ref(c.db, `rooms/${R7}/rounds/1/nightActions/${mafia.uid}`))),
+  );
+
+  console.log("\n== Mafia teammate reads are role-based (\"haven't agreed\" warning) ==");
+  // The read used to depend on the pick's own `role` field, so it was denied before the
+  // teammate had picked, and a denied listener is cancelled for good.
+  const [doctor, deadMafia] = await Promise.all([signedInClient(), signedInClient()]);
+  const R8 = freshCode();
+  await seedRoom(
+    R8,
+    mod,
+    [
+      { who: mafia, role: "Mafia" },
+      { who: mafia2, role: "Mafia" },
+      { who: doctor, role: "Doctor" },
+      { who: deadMafia, role: "Mafia", alive: false },
+      { who: a, role: "Civilian" },
+    ],
+    { phase: "night", round: 1 },
+  );
+  const pickPath = (uid: string) => `rooms/${R8}/rounds/1/nightActions/${uid}`;
+  await check("a Mafia can read a teammate's pick BEFORE it exists (null, not denied)", async () => {
+    const snap = await get(ref(mafia.db, pickPath(mafia2.uid)));
+    return !snap.exists();
+  });
+  await check("a listener attached before the teammate picks receives the pick", async () => {
+    const seen = new Promise<boolean>((resolve, reject) => {
+      const stop = onValue(
+        ref(mafia.db, pickPath(mafia2.uid)),
+        (snap) => {
+          if (snap.val()?.targetUid === a.uid) {
+            stop();
+            resolve(true);
+          }
+        },
+        reject,
+      );
+    });
+    // A cancelled listener never fires again, so give up after 5s rather than hang. Race
+    // before the write so a denial can't surface as an unhandled rejection.
+    const result = Promise.race([seen, new Promise<boolean>((r) => setTimeout(() => r(false), 5000))]);
+    result.catch(() => {});
+    await set(ref(mafia2.db, pickPath(mafia2.uid)), {
+      role: "Mafia", action: "kill", targetUid: a.uid, submittedAt: serverTimestamp(),
+    });
+    return result;
+  });
+  await check("a Mafia can read a teammate's pick AFTER it exists", async () => {
+    const snap = await get(ref(mafia.db, pickPath(mafia2.uid)));
+    return snap.val()?.targetUid === a.uid;
+  });
+  await set(ref(doctor.db, pickPath(doctor.uid)), {
+    role: "Doctor", action: "protect", targetUid: a.uid, submittedAt: serverTimestamp(),
+  });
+  await check("a Mafia is denied reading the Doctor's pick", () =>
+    denied(get(ref(mafia.db, pickPath(doctor.uid)))),
+  );
+  await check("a Mafia is denied reading a Civilian's not-yet-written pick", () =>
+    denied(get(ref(mafia2.db, pickPath(a.uid)))),
+  );
+  await check("the Doctor is denied reading a Mafia's pick", () =>
+    denied(get(ref(doctor.db, pickPath(mafia2.uid)))),
+  );
+  await check("a dead Mafia is denied reading a living teammate's pick", () =>
+    denied(get(ref(deadMafia.db, pickPath(mafia2.uid)))),
+  );
+  await check("the Doctor can still read their own pick", () =>
+    allowed(get(ref(doctor.db, pickPath(doctor.uid)))),
+  );
+  await check("the moderator can still read every pick", () =>
+    allowed(get(ref(mod.db, `rooms/${R8}/rounds/1/nightActions`))),
   );
   await check("a dead player cannot submit a night action", () =>
     denied(
