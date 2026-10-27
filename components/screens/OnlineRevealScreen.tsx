@@ -247,7 +247,10 @@ export function OnlineRevealScreen() {
         <>
           <div className="flex flex-1 items-center justify-center px-6 pb-28 pt-20 text-center">
             <div className="mx-auto flex w-full max-w-md flex-col items-center">
-              <span className="max-w-full break-words text-5xl font-extrabold tracking-tight sm:text-6xl">
+              <span
+                data-testid="revealed-role"
+                className="max-w-full break-words text-5xl font-extrabold tracking-tight sm:text-6xl"
+              >
                 {role}
               </span>
               {info && (
