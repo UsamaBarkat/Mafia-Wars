@@ -161,6 +161,8 @@ All 8 tasks were built in one autonomous pass, at the user's explicit request ("
   - Jester vote-out → "The Jester wins!"
 - Rules deployed to production; code pushed to `origin/main`.
 
+**Granny rule change (2026-10-28, spec-2d D15 — replaces all earlier Granny designs):** the Mafia's agreed kill on Granny now kills the first Mafia picker *instead* of her; a Doctor on Granny doesn't stop it; a Doctor on that Mafia saves him and lets the kill on Granny through. `resolveNight.ts` changed (no rules change). Granny's card now reads "If the Mafia target you, one of them dies instead." Suites: logic 71/71, resolvers 51/51, rules 72/72 (194 total); e2e 5/5, with the Granny test now also checking her card and a day vote-out of her, and the Jester test confirming the built-in role card. Not yet pushed or deployed.
+
 **Still not covered by the e2e suite:** phone-sized layouts, the role icon/description cards, and the new role-config rows (only their counts are exercised).
 
 **NEXT:** ask everyone in a live room to refresh.
