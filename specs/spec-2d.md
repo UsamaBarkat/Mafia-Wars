@@ -99,6 +99,11 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
   - The night outcome lists the dead **sorted by name**. Resolution order would hint at who the Mafia target was.
   - The day outcome keeps `eliminatedUid` (the voted-out player, already public through the tally) and shows any extra deaths as "also eliminated".
   - For one release, the night outcome keeps writing `eliminatedUid` when exactly one player died, and the UI falls back to it when `eliminatedUids` is missing. That keeps old cached clients readable during deploy (D11).
+- FR‑24a — **Stale-build guard** (added 2026-10-28 after a live bug). The moderator's device decides who dies, so a moderator tab opened before a deploy would keep resolving with the old rules (it resolved a Granny night with the pre‑D15 "Granny dies too" rule).
+  - Each build bakes in a build id (the Vercel git commit, `"local"` elsewhere) and publishes the same id as a static `/version.json`.
+  - Before **Begin Night 1**, **End Night** and **End Day**, the moderator's tab fetches `/version.json`. If the live id differs from its own, it does **not** resolve; it shows "A new version of the game is live. Refresh to keep going — your room is saved." with a **Refresh** button. The room is restored after the reload, and the moderator taps again.
+  - If `/version.json` can't be reached (offline, timeout after 5 s), the phase resolves as before: the check never blocks a game.
+  - Players' tabs aren't checked: they never decide an outcome.
 
 ### Security Rules
 
@@ -179,6 +184,7 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 - [x] The retaliation target is a lover → his partner dies too. Granny dies after the Doctor save and is a lover → her partner dies too.
 - [x] Granny voted out by day, or dying as a lover → no Mafia death. A day vote can still remove her.
 - [x] The win check runs after every Granny/lover death is applied.
+- [x] A moderator tab on an outdated build can't Begin Night 1 / End Night / End Day; it's asked to refresh, and after the refresh the room is restored and the phase resolves (FR‑24a).
 - [x] Night outcomes name every dead player (sorted, no role, no cause). The day outcome shows the voted-out player plus "also eliminated".
 - [x] Play Again clears `lovers`.
 - [x] 2b/2c regressions still pass: role secrecy, Mafia unanimous kill, Doctor cancel, Detective result, day tie/Skip, Town/Mafia wins, chats, Play Again.
