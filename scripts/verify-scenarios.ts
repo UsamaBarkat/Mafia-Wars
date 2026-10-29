@@ -53,7 +53,7 @@ type Phase = {
 
 function newGame(opts: { roles?: Record<string, string>; lovers?: [string, string]; dead?: string[] } = {}): Game {
   const roles = opts.roles ?? CAST;
-  const round1Actions = opts.lovers ? { cup: link(...opts.lovers) } : {};
+  const round1Actions: Record<string, NightAction> = opts.lovers ? { cup: link(...opts.lovers) } : {};
   const alive = new Set(Object.keys(roles).filter((uid) => !opts.dead?.includes(uid)));
   return { roles, alive, round1Actions };
 }
