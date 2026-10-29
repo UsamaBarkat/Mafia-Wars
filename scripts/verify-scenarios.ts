@@ -158,13 +158,32 @@ scenario("6. The Jester is a lover", () => {
     invariants("6a", g, p);
   }
   {
-    // Owner's expectation: the Jester wins here too. spec-2d FR-2 says a heartbreak death
-    // is NOT a Jester win. The rule is left alone — this check reports the difference.
+    // spec-2d D16: dying with a voted-out lover is a Jester win.
     const g = newGame({ lovers: ["jes", "civ1"] });
     const p = day(g, allVote(g, "civ1"));
-    check("6b · partner voted out, Jester dies of heartbreak: Jester wins (OWNER EXPECTATION)",
+    check("6b · partner voted out, Jester dies of heartbreak by day: Jester wins",
       { deaths: ["civ1", "jes"], winner: "jester" }, { deaths: p.deaths, winner: p.winner });
     invariants("6b", g, p);
+  }
+  {
+    const g = newGame({ lovers: ["jes", "civ1"] });
+    const p = night(g, { m1: kill("civ1", 100), m2: kill("civ1", 200) });
+    check("6c · partner killed at night, Jester dies of heartbreak: no win, game continues",
+      { deaths: ["civ1", "jes"], winner: null }, { deaths: p.deaths, winner: p.winner });
+    invariants("6c", g, p);
+  }
+  {
+    // 2 Mafia vs Cupid + Jester + Civilian. Voting out the Civilian also kills the Jester,
+    // leaving 2 Mafia vs Cupid: Mafia parity — but the Jester win takes priority (FR-4).
+    const g = newGame({
+      roles: { m1: "Mafia", m2: "Mafia", cup: "Cupid", jes: "Jester", civ1: "Civilian" },
+      lovers: ["jes", "civ1"],
+    });
+    const p = day(g, allVote(g, "civ1"));
+    check("6d · Jester heartbreak by day while the Mafia reach parity: Jester wins",
+      { deaths: ["civ1", "jes"], winnerWithoutJester: "mafia", winner: "jester" },
+      { deaths: p.deaths, winnerWithoutJester: checkWin(p.aliveRolesChecked), winner: p.winner });
+    invariants("6d", g, p);
   }
 });
 
