@@ -4,7 +4,7 @@
 
 Three new **online-only** roles. Unlike the four standard ones, each changes **who dies** or **who wins**:
 
-- **Jester** (neutral): wins only if the town votes them out during the day.
+- **Jester** (neutral): wins only if they die during a day-vote resolution — voted out, or dying with a voted-out lover.
 - **Cupid** (Town): on Night 1 only, links two other players as **lovers**. If either lover dies, the other dies in the same moment.
 - **Granny** (Town): if the Mafia's agreed night kill targets her, the Mafia player who picked her first dies **instead**, and Granny survives. Only a Doctor protecting that Mafia player turns it around: then he lives and Granny dies.
 
@@ -34,6 +34,7 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 ## User Scenarios
 
 - **Jester.** Seven players, one of them a Jester who plays suspicious all of Day 2. The town votes them out 4–2. Every device jumps to the game-over screen: **"The Jester wins!"**, with every role revealed.
+- **Jester dies with a voted-out lover.** Cupid linked the Jester and a Civilian. The town votes out the Civilian; the Jester dies with them, and **"The Jester wins!"** (D16).
 - **Jester killed at night.** The Mafia kill the Jester on Night 3. They just die and spectate. Later the last Mafia is voted out and **Town wins**. The Jester loses.
 - **Cupid.** On Night 1, Cupid's screen asks for two players. He taps Priya and Sam, taps **Link lovers**, and confirms. From then on Priya's screen shows "💘 Your partner is **Sam**" and Sam's shows "💘 Your partner is **Priya**". No one else sees anything: not other players, not spectators, not the moderator console. On Night 3 the Mafia kill Sam, and the outcome reads "**Priya** and **Sam** were eliminated".
 - **Lover saved.** The Mafia target Priya, but the Doctor protected Priya. No one dies, Sam is unaffected, and the link remains.
@@ -48,9 +49,9 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 ### Jester (neutral)
 
 - FR‑1 — The Jester has **no night action**. At night they see the same "No action tonight" wait state as a Civilian.
-- FR‑2 — **The Jester wins if, and only if, they are the player eliminated by the day vote** (the single most-voted living player, spec-2b FR‑12). None of these is a Jester win: being killed at night, dying as a lover (a heartbreak death), or a tie or Skip.
+- FR‑2 — **The Jester wins if, and only if, they die during a day-vote resolution** (D16): either they are the player eliminated by the day vote (the single most-voted living player, spec-2b FR‑12), or their lover is and the Jester dies with them (a heartbreak death by day). None of these is a Jester win: being killed at night, dying of heartbreak at night (their partner killed at night, or killed as Granny's retaliation target), or a tie or Skip (no one dies). *Replaced the earlier rule (2026-10-29), under which only the voted-out player could win and a heartbreak death by day was not a Jester win.*
 - FR‑3 — **A Jester win ends the game immediately for everyone.** `game.winner = "jester"`, the game-over screen shows **"The Jester wins!"**, and every role is revealed as usual (spec-2b FR‑15).
-- FR‑4 — **A Jester win overrides every other win check.** Suppose the vote eliminates the Jester and their lover dies with them, and that would also leave Town or Mafia winning. The Jester alone still wins.
+- FR‑4 — **A Jester win overrides every other win check.** Suppose the day's deaths (the Jester and their lover, whichever of them was voted out) would also leave Town or Mafia winning. The Jester alone still wins.
 - FR‑5 — **For parity, a living Jester counts as a non-Mafia player.** Mafia win when living Mafia ≥ everyone else alive, Jester included. Town wins when living Mafia = 0. The Jester never shares a Town win.
 - FR‑6 — A Detective who investigates the Jester learns **"not Mafia"**.
 
@@ -93,8 +94,8 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
   3. Get the lover pairs from round‑1 `link` actions. Only a real Cupid's action counts, with two distinct players, neither of them Cupid.
   4. Close the death set over the lover links.
   5. Detective results: unchanged.
-- FR‑22 — **Day resolution** (pure `resolveDay`): the tally is unchanged. Close the voted-out player over the lover links, and report whether the voted-out player was the Jester.
-- FR‑23 — **`checkWin(aliveRoles, jesterVotedOut)`**: if a Jester was voted out, `"jester"`, which overrides everything. Otherwise living Mafia = 0 → `"town"`, and living Mafia ≥ everyone else alive → `"mafia"`. Otherwise `null`. It always runs on the roster after **all** linked deaths. If everyone is dead, the result is `"town"` (Mafia = 0 is checked first).
+- FR‑22 — **Day resolution** (pure `resolveDay`): the tally is unchanged. Close the voted-out player over the lover links, and report whether any player in that death set is a Jester (`jesterDiedByDay`, FR‑2).
+- FR‑23 — **`checkWin(aliveRoles, jesterDiedByDay)`**: if a Jester died in the day resolution, `"jester"`, which overrides everything. The night resolver never sets it. Otherwise living Mafia = 0 → `"town"`, and living Mafia ≥ everyone else alive → `"mafia"`. Otherwise `null`. It always runs on the roster after **all** linked deaths. If everyone is dead, the result is `"town"` (Mafia = 0 is checked first).
 - FR‑24 — **Outcomes**: `nightOutcome`/`dayOutcome` gain `eliminatedUids` (a `uid → true` map, absent when no one died). Roles and causes never appear in them.
   - The night outcome lists the dead **sorted by name**. Resolution order would hint at who the Mafia target was.
   - The day outcome keeps `eliminatedUid` (the voted-out player, already public through the tally) and shows any extra deaths as "also eliminated".
@@ -150,7 +151,9 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 - **The Mafia disagree with one pick on Granny**: no kill, no retaliation, nothing happens.
 - **The night outcome reveals a Mafia death.** Mafia can't target a fellow Mafia, so a Mafia player eliminated at night died either as Granny's retaliation target or as a lover. The outcome still states no cause or role (FR‑24); see D15 for what players can infer.
 - **Several Cupids** may pick overlapping pairs. The links form a graph, and the closure handles chains and loops (A–B, B–C, C–A all die together).
-- **Several Grannies or Jesters**: there is only one Mafia kill per night, so at most one Granny triggers. The first Jester voted out wins.
+- **The Jester is a lover**: if either lover is voted out by day, both die and the Jester wins (FR‑2). If either lover dies at night, both die and the game goes on (or Town/Mafia win as usual).
+- **The Jester dies of heartbreak by day and the Mafia reach parity in the same resolution**: the Jester wins (FR‑4).
+- **Several Grannies or Jesters**: there is only one Mafia kill per night, so at most one Granny triggers. The first day resolution in which any Jester dies ends the game with a Jester win.
 - **Cupid killed on Night 1** still links. His action counts, just as an action from any player killed that night already counts.
 - **Everyone dies at once** → Town wins (Mafia = 0).
 - **Inference is part of the game.** `config/roles` is public, so a two-death night hints at Granny or lovers. The app never states a cause.
@@ -170,8 +173,8 @@ This builds directly on [spec-2b.md](spec-2b.md) (night/day resolver, `checkWin`
 
 - [ ] Online config shows Jester/Cupid/Granny (count 0, cap 20, non-removable). A custom role can't use any built-in name. Phase 1 config is unchanged. *(The seed/backfill data is emulator-verified; the on-screen rows still need a browser check.)*
 - [ ] The reveal shows each new role's icon and description. *(UI only, needs a browser check.)*
-- [x] The Jester is voted out → the game ends with "The Jester wins!" and a full reveal, even when Town or Mafia would also win at that moment.
-- [x] The Jester killed at night, or dying as a lover, doesn't win. The Jester counts as non-Mafia for parity.
+- [x] The Jester is voted out, or dies with a voted-out lover → the game ends with "The Jester wins!" and a full reveal, even when Town or Mafia would also win at that moment. *(Revised by D16.)*
+- [x] The Jester killed at night, or dying of heartbreak at night, doesn't win. The Jester counts as non-Mafia for parity.
 - [x] Cupid (Night 1 only, alive) can link two distinct other living players exactly once. Each of these is **denied by rules**: linking himself, changing or deleting the link, linking on Night 2+, a non-Cupid writing `link` or `lovers`, and a dead Cupid acting.
 - [x] Each lover can read only their own `lovers` entry. Other players, spectators, Cupid and the moderator are denied (rules-verified).
 - [x] No Cupid pick → no lovers, and the night resolves.
@@ -198,6 +201,7 @@ From the user's 2d brief, plus the "safest simple option" calls (marked ★) for
 
 - **D1 — The Jester counts as non-Mafia for parity, and a Jester win overrides every other win check.** *(→ FR‑4/5/23)*
 - **D2 — A Jester win ends the game immediately for everyone.** *(→ FR‑3)*
+- **D16 — Jester heartbreak by day wins (2026-10-29), replacing the earlier "only the voted-out player" rule.** Any Jester who dies during a day-vote resolution wins — voted out, or dying with a voted-out lover. A Jester who dies at night, including heartbreak from a night kill on their partner, does not. *(→ FR‑2/4/22/23)* The role card still reads "Get voted out to win." — unchanged on purpose, since being voted out stays the Jester's main path.
 - **D3 ★ — A Cupid link is confirmed once and then final.** *(→ FR‑7/8, FR‑25)* *Why: the rules can tie `lovers` entries to an immutable `link` action, so Cupid never has to delete stale entries and can never write extra pairs.*
 - **D4 — Cupid can't pick himself.** *(→ FR‑7)*
 - **D5 ★ — `lovers/{lover}/{partner} = true` map.** *(→ Backend)* *Why: cap 20 allows several Cupids, so a player may have more than one partner.*
