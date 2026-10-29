@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from "react";
 import { limitToLast, onValue, query, ref } from "firebase/database";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { roomPaths } from "./paths";
 import type {
   ChatMessage,
@@ -169,6 +169,10 @@ export function useMyNightAction(
  *  warning (spec-2b D6 revision); never rendered as anyone's role. A plain
  *  `useDbValue` call can't do this since the number of teammates varies between
  *  rooms/renders — this manages one child listener per uid inside a single hook. */
+// How long a denied teammate read waits for this player's own death to show up before
+// logging the denial as a real problem (see the error callback below).
+const DEATH_SETTLE_MS = 5000;
+
 export function useTeammateNightActions(
   code: string | null,
   round: number | null,
@@ -201,7 +205,22 @@ export function useTeammateNightActions(
           // this build) fails completely silently — the listener just never fires
           // again, so the "haven't agreed on a target" warning can never show even
           // when a real mismatch exists, with no visible sign anything is wrong.
-          console.error(`useTeammateNightActions: read denied for ${mateUid}:`, err);
+          // The rule only lets a LIVING Mafia read a teammate's pick, so once this
+          // player dies the denial is expected (their listener is revoked) — stay quiet
+          // then. The revoke can arrive a moment before their own alive:false does, so
+          // watch their alive flag briefly and log only if they're still alive.
+          const logDenied = () =>
+            console.error(`useTeammateNightActions: read denied for ${mateUid}:`, err);
+          const myUid = auth.currentUser?.uid;
+          if (!myUid) return logDenied();
+          let iDied = false;
+          const stopWatching = onValue(ref(db, roomPaths.playerAlive(code, myUid)), (snap) => {
+            if (snap.val() === false) iDied = true;
+          });
+          setTimeout(() => {
+            stopWatching();
+            if (!iDied) logDenied();
+          }, DEATH_SETTLE_MS);
         },
       );
     });
