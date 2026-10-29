@@ -3,7 +3,8 @@
 // win at parity (living Mafia >= living Town). Everyone who isn't Mafia counts as
 // Town, including custom roles (D1).
 //
-// [2d] A Jester voted out by day wins outright, overriding everything (spec-2d FR-3/4).
+// [2d] A Jester who dies in a day-vote resolution — voted out, or with a voted-out lover —
+// wins outright, overriding everything (spec-2d FR-2/3/4, D16). Never set at night.
 // A living Jester counts as a non-Mafia player for parity (FR-5) — the existing
 // "everyone who isn't Mafia" count already does exactly that.
 
@@ -17,14 +18,14 @@ const MAFIA = "Mafia";
  * after EVERY death of the phase (lovers, Granny's Mafia) has been applied.
  *
  * @param aliveRoles     role NAMES of every currently-living player.
- * @param jesterVotedOut [2d] true if today's vote eliminated a Jester.
+ * @param jesterDiedByDay [2d] true if a Jester died in today's day-vote resolution.
  * @returns "jester" | "town" | "mafia" | null (null ⇒ the game continues).
  */
 export function checkWin(
   aliveRoles: readonly string[],
-  jesterVotedOut = false,
+  jesterDiedByDay = false,
 ): WinnerTeam | null {
-  if (jesterVotedOut) return "jester"; // overrides every other result (spec-2d FR-4)
+  if (jesterDiedByDay) return "jester"; // overrides every other result (spec-2d FR-4)
 
   const mafia = aliveRoles.filter((r) => r === MAFIA).length;
   const town = aliveRoles.length - mafia; // includes a living Jester (spec-2d FR-5)

@@ -13,8 +13,9 @@
 // unchanged) — or, on a win, ends the game: game -> {phase:'ended', round, winner}.
 //
 // [2d] The voted-out player's lovers die in the same atomic write (spec-2d FR-12; pairs
-// from round 1's Cupid "link" actions, as in resolveNightOnClient), and a voted-out
-// Jester wins outright, overriding every other result (FR-3/4).
+// from round 1's Cupid "link" actions, as in resolveNightOnClient), and a Jester who
+// dies today — voted out, or with a voted-out lover — wins outright, overriding every
+// other result (FR-2/3/4, D16).
 //
 // publicRoles (FR-15) is a SECOND, separate write made only after the first succeeds —
 // see the matching note in resolveNightOnClient.ts: its rule requires
@@ -55,7 +56,7 @@ export async function resolveDayOnClient(code: string, round: number): Promise<v
     roles[uid] = entry.role;
   }
 
-  const { eliminatedUid, eliminatedUids, jesterVotedOut } = resolveDay(
+  const { eliminatedUid, eliminatedUids, jesterDiedByDay } = resolveDay(
     votes,
     roles,
     loverPairs(round1Actions, roles),
@@ -80,7 +81,7 @@ export async function resolveDayOnClient(code: string, round: number): Promise<v
     .map(([uid]) => uid);
   const winner = checkWin(
     aliveUids.map((uid) => roles[uid]),
-    jesterVotedOut,
+    jesterDiedByDay,
   );
 
   if (winner) {

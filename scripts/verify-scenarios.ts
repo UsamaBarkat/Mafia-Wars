@@ -59,12 +59,12 @@ function newGame(opts: { roles?: Record<string, string>; lovers?: [string, strin
 }
 
 /** Apply one phase's resolved deaths and run the win check — same glue as *OnClient. */
-function finish(game: Game, eliminatedUids: string[], jesterVotedOut: boolean): Phase {
+function finish(game: Game, eliminatedUids: string[], jesterDiedByDay: boolean): Phase {
   const aliveBefore = [...game.alive].sort();
   const deaths = eliminatedUids.filter((uid) => game.alive.has(uid));
   for (const uid of deaths) game.alive.delete(uid);
   const aliveRolesChecked = [...game.alive].sort().map((uid) => game.roles[uid]);
-  const winner = checkWin(aliveRolesChecked, jesterVotedOut);
+  const winner = checkWin(aliveRolesChecked, jesterDiedByDay);
   return { deaths: [...deaths].sort(), winner, aliveBefore, aliveRolesChecked };
 }
 
@@ -77,8 +77,8 @@ function night(game: Game, actions: Record<string, NightAction>): Phase {
 
 function day(game: Game, votes: Record<string, string>): Phase {
   const pairs = loverPairs(game.round1Actions, game.roles);
-  const { eliminatedUids, jesterVotedOut } = resolveDay(votesFor(votes), game.roles, pairs);
-  return finish(game, eliminatedUids, jesterVotedOut);
+  const { eliminatedUids, jesterDiedByDay } = resolveDay(votesFor(votes), game.roles, pairs);
+  return finish(game, eliminatedUids, jesterDiedByDay);
 }
 
 /** Everyone votes for `target` (target votes Skip). */

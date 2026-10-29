@@ -4,8 +4,8 @@
 // D7 — a tie, or "Skip" winning/tying the top spot, eliminates no one.
 //
 // [2d] The voted-out player's lovers die with them (spec-2d FR-12), and the result
-// says whether the voted-out player was the Jester (FR-2) — checkWin turns that into
-// the overriding Jester win.
+// says whether any Jester died today — voted out, or with a voted-out lover (FR-2,
+// D16). checkWin turns that into the overriding Jester win.
 
 import { SKIP_VOTE } from "../room/types";
 import { withLinkedDeaths, type LoverPair } from "./lovers";
@@ -19,8 +19,8 @@ export type DayResolution = {
   eliminatedUid: string | null;
   /** [2d] Everyone who died today — the voted-out player plus linked lovers, sorted by uid. */
   eliminatedUids: string[];
-  /** [2d] True only when the vote itself eliminated a Jester (spec-2d FR-2). */
-  jesterVotedOut: boolean;
+  /** [2d] True when any Jester is in eliminatedUids — voted out or a lover (spec-2d FR-2, D16). */
+  jesterDiedByDay: boolean;
 };
 
 /**
@@ -28,7 +28,7 @@ export type DayResolution = {
  *
  * @param votes votes keyed by voter uid (rounds/{n}/votes). Each targets a living
  *   player's uid or SKIP_VOTE ("skip").
- * @param roles [2d] true role NAME per uid — only used to spot a voted-out Jester.
+ * @param roles [2d] true role NAME per uid — only used to spot a Jester among today's dead.
  * @param pairs [2d] lover pairs (from round 1's Cupid links — see lovers.ts).
  *
  * The eliminated player is the single target with the most votes. If the top is
@@ -47,7 +47,7 @@ export function resolveDay(
 
   const targets = Object.keys(tally);
   if (targets.length === 0) {
-    return { eliminatedUid: null, eliminatedUids: [], jesterVotedOut: false };
+    return { eliminatedUid: null, eliminatedUids: [], jesterDiedByDay: false };
   }
 
   const max = Math.max(...targets.map((t) => tally[t]));
@@ -60,7 +60,7 @@ export function resolveDay(
   const eliminatedUids = eliminatedUid
     ? [...withLinkedDeaths([eliminatedUid], pairs)].sort()
     : [];
-  const jesterVotedOut = eliminatedUid !== null && roles[eliminatedUid] === JESTER;
+  const jesterDiedByDay = eliminatedUids.some((uid) => roles[uid] === JESTER);
 
-  return { eliminatedUid, eliminatedUids, jesterVotedOut };
+  return { eliminatedUid, eliminatedUids, jesterDiedByDay };
 }

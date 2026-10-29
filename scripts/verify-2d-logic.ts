@@ -245,21 +245,21 @@ check("win check after the standard retaliation (m1 dead): game continues",
 console.log("\n== Jester & win checks ==");
 {
   const day = resolveDay(votesFor({ a: "jes", b: "jes", c: "m1" }), roles);
-  check("Jester voted out => jesterVotedOut", day.jesterVotedOut && day.eliminatedUid === "jes", day);
-  check("...and checkWin returns 'jester'", checkWin(["Mafia", "Civilian"], day.jesterVotedOut) === "jester");
+  check("Jester voted out => jesterDiedByDay", day.jesterDiedByDay && day.eliminatedUid === "jes", day);
+  check("...and checkWin returns 'jester'", checkWin(["Mafia", "Civilian"], day.jesterDiedByDay) === "jester");
 }
 {
   // Only 3 left: Jester, 1 Mafia, 1 Civilian. Town votes out the Jester.
   const day = resolveDay(votesFor({ m1: "jes", civ1: "jes", jes: "civ1" }), roles);
   const alive = ["m1", "civ1"].map((u) => roles[u]);
-  check("few players left: Jester voted out still wins (not Mafia parity)", checkWin(alive, day.jesterVotedOut) === "jester");
+  check("few players left: Jester voted out still wins (not Mafia parity)", checkWin(alive, day.jesterDiedByDay) === "jester");
 }
 {
   // Jester is the last Mafia's lover: voting out the Jester also kills the last Mafia,
   // which would be a Town win — the Jester overrides it.
   const day = resolveDay(votesFor({ a: "jes", b: "jes" }), roles, [["jes", "m1"]]);
   const alive = ["civ1", "doc"].map((u) => roles[u]);
-  check("Jester win overrides a simultaneous Town win", same(day.eliminatedUids, ["jes", "m1"]) && checkWin(alive, day.jesterVotedOut) === "jester", day);
+  check("Jester win overrides a simultaneous Town win", same(day.eliminatedUids, ["jes", "m1"]) && checkWin(alive, day.jesterDiedByDay) === "jester", day);
 }
 {
   const r = resolveNight({ m1: kill("jes", 1) }, roles);
@@ -267,8 +267,13 @@ console.log("\n== Jester & win checks ==");
 }
 {
   const day = resolveDay(votesFor({ a: "civ1", b: "civ1" }), roles, [["civ1", "jes"]]);
-  check("Jester dying as a lover by day is NOT a Jester win", !day.jesterVotedOut && same(day.eliminatedUids, ["civ1", "jes"]), day);
+  check("Jester dying as a lover by day IS a Jester win (D16)", day.jesterDiedByDay && same(day.eliminatedUids, ["civ1", "jes"]), day);
 }
+{
+  const r = resolveNight({ m1: kill("civ1", 1) }, roles, [["civ1", "jes"]]);
+  check("Jester dying as a lover at night is NOT a Jester win", same(r.eliminatedUids, ["civ1", "jes"]) && checkWin(["Mafia", "Doctor", "Civilian"]) === null, r);
+}
+check("tie or Skip by day: no death, no Jester win", !resolveDay(votesFor({ a: "jes", b: "skip" }), roles).jesterDiedByDay);
 check("Jester counts as non-Mafia for parity (1 Mafia vs Jester+Civ => continues)", checkWin(["Mafia", "Jester", "Civilian"]) === null);
 check("1 Mafia + Jester left => Mafia parity win", checkWin(["Mafia", "Jester"]) === "mafia");
 check("last Mafia dead with Jester alive => Town wins (Jester loses)", checkWin(["Jester", "Civilian"]) === "town");
